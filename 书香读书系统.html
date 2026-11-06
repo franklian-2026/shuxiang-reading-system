@@ -717,7 +717,7 @@ body::before { opacity: .38; }
     50%      { transform: translateY(7px); opacity: .82; }
 }
 
-/* ---- 科举段位徽章 ---- */
+/* ---- 宝石段位徽章 ---- */
 .tier-badge {
     display: inline-flex; align-items: center; gap: 5px;
     padding: 2px 11px 2px 3px; border-radius: 999px;
@@ -1414,7 +1414,7 @@ body::before { opacity: .38; }
                     距离晋升「{{ nextTitle(profileUser.totalPoints).name }}」还差 <b>{{ nextTitle(profileUser.totalPoints).min - profileUser.totalPoints }}</b> 分
                     <div class="rbar wide"><div class="rbar-fill" :style="{ width: Math.min(100, profileUser.totalPoints / nextTitle(profileUser.totalPoints).min * 100) + '%' }"></div></div>
                 </div>
-                <div class="ph-title-line" v-else>已臻「文曲星」之境 · 学海无涯</div>
+                <div class="ph-title-line" v-else>已达最高段位「传奇王者」 · 淡定从容，笑看书海</div>
             </div>
         </div>
 
@@ -1427,7 +1427,7 @@ body::before { opacity: .38; }
         </div>
 
         <div class="card frame" style="padding:22px 28px; max-width:1100px; margin:0 auto 20px;">
-            <h3 style="letter-spacing:3px; margin-bottom:14px;">🎖 科举之路</h3>
+            <h3 style="letter-spacing:3px; margin-bottom:14px;">🎖 段位之路</h3>
             <div class="tier-ladder">
                 <template v-for="(t, i) in TITLES" :key="t.name">
                     <span v-if="i" class="tl-sep">➤</span>
@@ -2352,19 +2352,19 @@ createApp({
             return posts.sort((a, b) => b.date.localeCompare(a.date));
         });
 
-        // ============ 科举段位机制 ============
-        // 按审核通过的总积分晋升，颜色由素雅到华贵
+        // ============ 宝石段位机制 ============
+        // 按审核通过的总积分晋升，颜色由青铜到神秘紫
         const TITLES = [
-            { min: 0,    name: '童生',   icon: '蒙', color: '#8d8570' },
-            { min: 100,  name: '秀才',   icon: '秀', color: '#5f7d54' },
-            { min: 300,  name: '举人',   icon: '举', color: '#46748f' },
-            { min: 600,  name: '贡士',   icon: '贡', color: '#3e699b' },
-            { min: 1000, name: '进士',   icon: '进', color: '#6a5fa0' },
-            { min: 1500, name: '探花',   icon: '探', color: '#9e2b25' },
-            { min: 2100, name: '榜眼',   icon: '榜', color: '#b3572e' },
-            { min: 2800, name: '状元',   icon: '状', color: '#b08d2f' },
-            { min: 3600, name: '大学士', icon: '阁', color: '#a0632b' },
-            { min: 4500, name: '文曲星', icon: '星', color: '#8c2f8c' }
+            { min: 0,    name: '坚韧青铜', icon: '铜', color: '#a2703f' },
+            { min: 100,  name: '秩序白银', icon: '银', color: '#8f9aa6' },
+            { min: 300,  name: '荣耀黄金', icon: '金', color: '#c9a227' },
+            { min: 600,  name: '尊贵铂金', icon: '铂', color: '#4fa3a5' },
+            { min: 1000, name: '永恒钻石', icon: '钻', color: '#4a7fd4' },
+            { min: 1500, name: '至尊星耀', icon: '耀', color: '#7b5fc0' },
+            { min: 2100, name: '最强王者', icon: '王', color: '#c0392b' },
+            { min: 2800, name: '无双王者', icon: '双', color: '#d35400' },
+            { min: 3600, name: '荣耀王者', icon: '巅', color: '#922b21' },
+            { min: 4500, name: '传奇王者', icon: '神', color: '#8e44ad' }
         ];
         const getTitle = (points) => {
             let t = TITLES[0];
@@ -2601,7 +2601,7 @@ createApp({
             const ratio = score / b.questions.length;
             testResult.value = {
                 score, total: b.questions.length,
-                remark: ratio === 1 ? '文曲星附体 · 满分！' : ratio >= 0.8 ? '思通达也 · 令人叹服' :
+                remark: ratio === 1 ? '传奇王者附体 · 满分！' : ratio >= 0.8 ? '思通达也 · 令人叹服' :
                         ratio >= 0.6 ? '渐入佳境 · 继续精进' : '学而时习之 · 再读一遍方得真意'
             };
             const u = users.value.find(x => x.username === currentUser.value.username);
