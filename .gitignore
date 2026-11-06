@@ -1,0 +1,10 @@
+# 运行时数据与私密文件（不上传）
+书会数据.json
+书会数据.json.tmp
+数据备份/
+.会话密钥
+
+# 系统杂项
+Thumbs.db
+Desktop.ini
+*.log
