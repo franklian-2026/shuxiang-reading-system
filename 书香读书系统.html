@@ -717,6 +717,41 @@ body::before { opacity: .38; }
     50%      { transform: translateY(7px); opacity: .82; }
 }
 
+/* ---- 科举段位徽章 ---- */
+.tier-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 11px 2px 3px; border-radius: 999px;
+    color: #f8f4ea; font-size: 13px; letter-spacing: 1px;
+    vertical-align: middle; line-height: 1.6;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 2px 6px rgba(30,25,18,.25);
+}
+.tier-badge .tb-ic {
+    width: 20px; height: 20px; border-radius: 50%; flex-shrink: 0;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,.22); font-size: 12px; font-weight: bold;
+    font-family: 'KaiTi','STKaiti',serif;
+}
+.tier-badge.big { font-size: 16px; padding: 4px 16px 4px 5px; }
+.tier-badge.big .tb-ic { width: 27px; height: 27px; font-size: 15px; }
+/* 个人主页 · 段位阶梯 */
+.tier-ladder { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.tier-ladder .tl-node {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 12px 4px 5px; border-radius: 999px;
+    border: 1px solid var(--line); color: var(--ink-3);
+    font-size: 14px; letter-spacing: 1px; background: var(--paper);
+}
+.tier-ladder .tl-node .tb-ic {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--line-2); color: var(--ink-2); font-size: 12px; font-weight: bold;
+    font-family: 'KaiTi','STKaiti',serif;
+}
+.tier-ladder .tl-node.reached { border-color: transparent; color: #f8f4ea; box-shadow: var(--shadow-sm); }
+.tier-ladder .tl-node.reached .tb-ic { background: rgba(255,255,255,.25); color: #f8f4ea; }
+.tier-ladder .tl-node.current { transform: scale(1.08); box-shadow: 0 3px 10px rgba(30,25,18,.3); }
+.tier-ladder .tl-sep { color: var(--ink-3); font-size: 12px; opacity: .6; }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: .01ms !important;
@@ -876,7 +911,7 @@ body::before { opacity: .38; }
                 🔔<span class="bell-badge" v-if="unreadCount">{{ unreadCount > 99 ? '99+' : unreadCount }}</span>
             </button>
             <div class="user-chip" v-if="currentUser" @click="openProfile(currentUser.username)" style="cursor:pointer;" title="查看个人主页">
-                <span>{{ currentUser.name }} <span class="title-chip">{{ getTitle(currentUser.totalPoints).name }}</span> · {{ currentUser.role === 'admin' ? '掌馆' : '会员' }}</span>
+                <span>{{ currentUser.name }} <span class="tier-badge" :style="tierStyle(currentUser.totalPoints)"><span class="tb-ic">{{ getTitle(currentUser.totalPoints).icon }}</span>{{ getTitle(currentUser.totalPoints).name }}</span> · {{ currentUser.role === 'admin' ? '掌馆' : '会员' }}</span>
                 <span class="pts">积分 {{ currentUser.totalPoints }}</span>
                 <button class="btn-ghost" @click.stop="logout">退出</button>
             </div>
@@ -1030,10 +1065,11 @@ body::before { opacity: .38; }
         </div>
         <div class="board">
             <table>
-                <tr><th>名次</th><th>姓名</th><th>总积分</th><th>今日</th><th>打卡</th><th>成就</th></tr>
+                <tr><th>名次</th><th>姓名</th><th>段位</th><th>总积分</th><th>今日</th><th>打卡</th><th>成就</th></tr>
                 <tr v-for="(u,idx) in leaderboardData" :key="u.username">
                     <td><span class="rank-no" :class="{top1: idx===0, top2: idx===1, top3: idx===2}">{{ idx+1 }}</span></td>
                     <td style="font-size:19px;">{{ u.name }}</td>
+                    <td><span class="tier-badge" :style="tierStyle(u.totalPoints)"><span class="tb-ic">{{ getTitle(u.totalPoints).icon }}</span>{{ getTitle(u.totalPoints).name }}</span></td>
                     <td style="font-size:19px; font-weight:bold;">{{ u.totalPoints }}</td>
                     <td><span class="today-pts">+{{ u.todayPoints }}</span></td>
                     <td>{{ u.signCount }} 天</td>
@@ -1168,7 +1204,7 @@ body::before { opacity: .38; }
                     <div class="f-avatar brush" style="cursor:pointer;" @click="openProfile(p.author)" :title="'查看 ' + p.authorName + ' 的主页'">{{ p.authorName.slice(0, 1) }}</div>
                     <div style="flex:1; min-width:0;">
                         <div class="f-title">{{ p.title }}</div>
-                        <div class="f-meta"><span class="title-chip">{{ getTitle(uTotal(p.author)).name }}</span> {{ p.authorName }} · {{ p.time }}</div>
+                        <div class="f-meta"><span class="tier-badge" :style="tierStyle(uTotal(p.author))"><span class="tb-ic">{{ getTitle(uTotal(p.author)).icon }}</span>{{ getTitle(uTotal(p.author)).name }}</span> {{ p.authorName }} · {{ p.time }}</div>
                     </div>
                     <button class="f-act" v-if="canModerate(p)" @click="deletePost(p)" title="删除主题">🗑</button>
                 </div>
@@ -1371,14 +1407,14 @@ body::before { opacity: .38; }
             <div class="f-avatar brush" style="width:84px; height:84px; font-size:40px;">{{ profileUser.name.slice(0, 1) }}</div>
             <div class="ph-main">
                 <div class="ph-name">{{ profileUser.name }}
-                    <span class="title-chip big">{{ getTitle(profileUser.totalPoints).name }}</span>
+                    <span class="tier-badge big" :style="tierStyle(profileUser.totalPoints)"><span class="tb-ic">{{ getTitle(profileUser.totalPoints).icon }}</span>{{ getTitle(profileUser.totalPoints).name }}</span>
                     <span class="ph-role" v-if="profileUser.role === 'admin'">掌馆</span>
                 </div>
                 <div class="ph-title-line" v-if="nextTitle(profileUser.totalPoints)">
-                    距离「{{ nextTitle(profileUser.totalPoints).name }}」还差 <b>{{ nextTitle(profileUser.totalPoints).min - profileUser.totalPoints }}</b> 分
+                    距离晋升「{{ nextTitle(profileUser.totalPoints).name }}」还差 <b>{{ nextTitle(profileUser.totalPoints).min - profileUser.totalPoints }}</b> 分
                     <div class="rbar wide"><div class="rbar-fill" :style="{ width: Math.min(100, profileUser.totalPoints / nextTitle(profileUser.totalPoints).min * 100) + '%' }"></div></div>
                 </div>
-                <div class="ph-title-line" v-else>已臻「大学士」之境 · 学海无涯</div>
+                <div class="ph-title-line" v-else>已臻「文曲星」之境 · 学海无涯</div>
             </div>
         </div>
 
@@ -1388,6 +1424,20 @@ body::before { opacity: .38; }
             <div class="card frame stat-cell"><div class="num">{{ profileStats.totalPages }}</div><div class="lbl">读页</div></div>
             <div class="card frame stat-cell"><div class="num">{{ wordsOf(profileName) }}<span style="font-size:16px;">万</span></div><div class="lbl">累计字数</div></div>
             <div class="card frame stat-cell"><div class="num">{{ profileStats.continuousDays }}</div><div class="lbl">连续天数</div></div>
+        </div>
+
+        <div class="card frame" style="padding:22px 28px; max-width:1100px; margin:0 auto 20px;">
+            <h3 style="letter-spacing:3px; margin-bottom:14px;">🎖 科举之路</h3>
+            <div class="tier-ladder">
+                <template v-for="(t, i) in TITLES" :key="t.name">
+                    <span v-if="i" class="tl-sep">➤</span>
+                    <span class="tl-node"
+                          :class="{ reached: profileUser.totalPoints >= t.min, current: getTitle(profileUser.totalPoints).name === t.name }"
+                          :style="profileUser.totalPoints >= t.min ? { background: t.color } : {}">
+                        <span class="tb-ic">{{ t.icon }}</span>{{ t.name }}
+                    </span>
+                </template>
+            </div>
         </div>
 
         <div class="pgrid">
@@ -2302,11 +2352,19 @@ createApp({
             return posts.sort((a, b) => b.date.localeCompare(a.date));
         });
 
-        // ============ 古风头衔等级 ============
+        // ============ 科举段位机制 ============
+        // 按审核通过的总积分晋升，颜色由素雅到华贵
         const TITLES = [
-            { min: 0,    name: '书童' },   { min: 100,  name: '秀才' },
-            { min: 300,  name: '举人' },   { min: 600,  name: '进士' },
-            { min: 1000, name: '翰林' },   { min: 1600, name: '大学士' }
+            { min: 0,    name: '童生',   icon: '蒙', color: '#8d8570' },
+            { min: 100,  name: '秀才',   icon: '秀', color: '#5f7d54' },
+            { min: 300,  name: '举人',   icon: '举', color: '#46748f' },
+            { min: 600,  name: '贡士',   icon: '贡', color: '#3e699b' },
+            { min: 1000, name: '进士',   icon: '进', color: '#6a5fa0' },
+            { min: 1500, name: '探花',   icon: '探', color: '#9e2b25' },
+            { min: 2100, name: '榜眼',   icon: '榜', color: '#b3572e' },
+            { min: 2800, name: '状元',   icon: '状', color: '#b08d2f' },
+            { min: 3600, name: '大学士', icon: '阁', color: '#a0632b' },
+            { min: 4500, name: '文曲星', icon: '星', color: '#8c2f8c' }
         ];
         const getTitle = (points) => {
             let t = TITLES[0];
@@ -2314,7 +2372,31 @@ createApp({
             return t;
         };
         const nextTitle = (points) => TITLES.find(x => x.min > points) || null;
+        const tierStyle = (points) => ({ background: getTitle(points).color });
         const uTotal = (username) => (users.value.find(x => x.username === username) || {}).totalPoints || 0;
+
+        // 升段检测：积分跨越阈值时推送通知（去重，避免多设备重复）
+        const tierMemo = new Map();
+        const tierWatch = computed(() => users.value.map(u => u.username + ':' + u.totalPoints).join('|'));
+        watch(tierWatch, () => {
+            users.value.forEach(u => {
+                if (u.role === 'admin') return;
+                const idx = TITLES.reduce((acc, t, i) => u.totalPoints >= t.min ? i : acc, 0);
+                const prev = tierMemo.get(u.username);
+                if (prev === undefined) { tierMemo.set(u.username, idx); return; }
+                if (idx > prev) {
+                    const t = TITLES[idx];
+                    const text = `🎖 恭喜！积分晋升「<b>${t.name}</b>」，学海扬帆再进一步`;
+                    if (!notifications.value.some(n => n.to === u.username && n.text === text)) {
+                        pushNotification(u.username, text, 'leaderboard');
+                    }
+                    if (currentUser.value?.username === u.username) {
+                        toast(`🎖 恭喜晋升「<b>${t.name}</b>」段位！`, 4500);
+                    }
+                }
+                tierMemo.set(u.username, idx);
+            });
+        });
 
         // ============ 消息通知 ============
         const myNotifications = computed(() =>
@@ -2793,7 +2875,7 @@ createApp({
             wallPosts, pendingRecords, selectedUserAchievements, availableAchievements,
             toasts, SERVER_MODE, forum, sortedForum, newPostTitle, newPostContent, replyText, openReply,
             submitPost, toggleReply, addReply, toggleLike, canModerate, deletePost, deleteReply,
-            TITLES, getTitle, nextTitle, uTotal,
+            TITLES, getTitle, nextTitle, tierStyle, uTotal,
             books, bookInfo, catalogUnread, newBook, addBook, removeBook,
             qDraft, startQuestion, saveQuestion, delQuestion,
             testBook, testAnswers, testResult, startTest, submitTest, closeTest, userScore, scoreBoard, wordsOf,
