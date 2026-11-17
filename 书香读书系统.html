@@ -402,6 +402,8 @@ body::before {
 .q-opt:hover { border-color: var(--cinnabar); }
 .q-opt.sel { border-color: var(--cinnabar); background: var(--cinnabar-bg); color: var(--cinnabar-deep); }
 .q-opt input { width: auto; accent-color: var(--cinnabar); }
+.q-input { width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--line); border-radius: 2px; font-size: 15px; background: var(--card); color: var(--ink-1); font-family: inherit; outline: none; transition: border-color .2s; }
+.q-input:focus { border-color: var(--cinnabar); }
 .wall-quote { font-size: 52px; color: var(--cinnabar); opacity: .35; line-height: 0; position: absolute; top: 42px; left: 22px; font-family: 'Ma Shan Zheng', serif; }
 .wall-text { font-size: 18px; line-height: 2; margin: 22px 0 20px; min-height: 60px; }
 .wall-meta { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--line-2); padding-top: 16px; font-size: 15px; color: var(--ink-2); }
@@ -1754,6 +1756,7 @@ body::before { opacity: .38; }
                         <td>{{ b.questions.length }} 题</td>
                         <td style="white-space:nowrap;">
                             <button class="btn plain sm" @click="startQuestion(b)">出题</button>
+                            <button class="btn plain sm" @click="openEssays(b)">心得</button>
                             <button class="btn red sm" @click="removeBook(b)">删</button>
                         </td>
                     </tr>
@@ -1803,22 +1806,52 @@ body::before { opacity: .38; }
         <div class="card frame dlg" style="max-width:660px; max-height:84vh; overflow:auto;">
             <h2><span class="title-seal">测</span>《{{ testBook.title }}》思维测评</h2>
             <template v-if="!testResult">
-                <div class="q-item" v-for="(q, i) in testBook.questions" :key="i">
-                    <div class="q-title">{{ i + 1 }}. {{ q.q }}</div>
-                    <label class="q-opt" v-for="(o, oi) in q.opts" :key="oi" :class="{ sel: testAnswers[i] === oi }">
-                        <input type="radio" :name="'q' + i" :value="oi" v-model="testAnswers[i]">
-                        {{ ['甲', '乙', '丙', '丁'][oi] }}. {{ o }}
-                    </label>
-                </div>
+                <template v-for="(sec, si) in testSections" :key="si">
+                    <div style="font-size:18px; letter-spacing:3px; color:var(--ink-2); margin:20px 0 12px; font-weight:bold; border-bottom:1px dashed var(--line); padding-bottom:8px;">{{ sec.label }}</div>
+                    <div class="q-item" v-for="item in sec.items" :key="item.idx">
+                        <div class="q-title">{{ item.idx + 1 }}. {{ item.q.q }}</div>
+                        <template v-if="item.q.type === 'blank'">
+                            <input class="q-input" v-model="testBlanks[item.idx]" placeholder="请在此填写答案（若一题有多空，请按顺序作答，以空格或、分隔）">
+                        </template>
+                        <template v-else-if="item.q.type === 'essay'">
+                            <textarea class="q-input" rows="5" v-model="testEssay[item.idx]" placeholder="开放作答 · 不限字数（请至少写10字）· 提交后由掌馆人查阅，不计入得分"></textarea>
+                        </template>
+                        <template v-else>
+                            <label class="q-opt" v-for="(o, oi) in item.q.opts" :key="oi" :class="{ sel: testAnswers[item.idx] === oi }">
+                                <input type="radio" :name="'q' + item.idx" :value="oi" v-model="testAnswers[item.idx]">
+                                {{ ['甲', '乙', '丙', '丁'][oi] }}. {{ o }}
+                            </label>
+                        </template>
+                    </div>
+                </template>
                 <button class="btn" style="width:100%; margin-top:20px;" @click="submitTest">交 卷</button>
             </template>
             <template v-else>
                 <div style="text-align:center; padding:26px 0;">
                     <div class="brush" style="font-size:64px; color:var(--cinnabar);">{{ testResult.score }}<span style="font-size:28px; color:var(--ink-3);"> / {{ testResult.total }}</span></div>
                     <div style="font-size:19px; letter-spacing:2px; margin-top:14px; color:var(--ink-2);">{{ testResult.remark }}</div>
+                    <div v-if="testResult.hasEssay" style="margin-top:16px; padding:10px 18px; border:1px dashed var(--line); color:var(--ink-3); font-size:15px; letter-spacing:1px;">✒️ 理解题已提交，等待掌馆人查阅</div>
                 </div>
                 <button class="btn" style="width:100%; margin-top:10px;" @click="closeTest">收 卷</button>
             </template>
+        </div>
+    </div>
+
+    <!-- 学生理解题查阅弹窗(掌馆人) -->
+    <div v-if="essayBook" class="overlay" @click.self="essayBook = null">
+        <div class="card frame dlg" style="max-width:660px; max-height:84vh; overflow:auto;">
+            <h2><span class="title-seal">阅</span>《{{ essayBook.title }}》理解题作答</h2>
+            <template v-if="essayEntries.length">
+                <div class="card frame" style="padding:16px 22px; margin-bottom:12px;" v-for="(e, ei) in essayEntries" :key="ei">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <b class="wall-book" style="cursor:pointer;" @click="openProfile(e.username)">{{ e.name }}</b>
+                        <span style="color:var(--ink-3); font-size:14px;">{{ e.date }}</span>
+                    </div>
+                    <div class="wall-text" style="margin:0; white-space:pre-wrap;">{{ e.text }}</div>
+                </div>
+            </template>
+            <div v-else style="text-align:center; padding:34px 0; color:var(--ink-3); font-size:16px; letter-spacing:2px;">尚无学生作答</div>
+            <button class="btn plain" style="width:100%; margin-top:14px;" @click="essayBook = null">关 闭</button>
         </div>
     </div>
 
@@ -2769,33 +2802,101 @@ createApp({
 
         const testBook = ref(null);
         const testAnswers = ref({});
+        const testBlanks = ref({});     // 填空题作答: {题索引: 输入文本}
+        const testEssay = ref({});      // 理解题作答: {题索引: 输入文本}
         const testResult = ref(null);
+        // 测评题按题型分区: 一、选择题 二、填空题 三、理解题
+        const testSections = computed(() => {
+            const qs = (testBook.value && testBook.value.questions) || [];
+            const defs = [
+                { label: '一、选择题', match: q => !q.type || q.type === 'choice' },
+                { label: '二、填空题', match: q => q.type === 'blank' },
+                { label: '三、理解题', match: q => q.type === 'essay' }
+            ];
+            return defs
+                .map(d => ({ label: d.label, items: qs.map((q, idx) => ({ q, idx })).filter(x => d.match(x.q)) }))
+                .filter(s => s.items.length);
+        });
+        // 答案归一化: 全角→半角 / 去空白 / 去大小写 / 去书名号引号 / 去括注与分隔标点
+        const normalizeAns = (s) => ((s == null ? '' : String(s))
+            .replace(/[０-９Ａ-Ｚａ-ｚ]/g, ch => String.fromCharCode(ch.charCodeAt(0) - 0xFEE0))
+            .replace(/[（(][^（）()]*[）)]/g, '')
+            .replace(/[《》「」『』“”‘’"'′]/g, '')
+            .replace(/[，、；;。．.·—～]/g, '')
+            .replace(/[\s\u3000]+/g, '')
+            .toLowerCase());
+        // 填空判分: 参考答案含 / 时任意一种写法匹配即算对
+        const checkBlank = (input, answer) => {
+            const val = normalizeAns(input);
+            if (!val) return false;
+            return String(answer || '').split('/')
+                .map(x => normalizeAns(x))
+                .filter(Boolean)
+                .some(a => a === val);
+        };
         const startTest = (b) => {
             if (!currentUser.value) { toast('请先登录再作答'); return; }
             if (!b.questions || !b.questions.length) { toast('此书尚未收录测评题'); return; }
-            testBook.value = b; testAnswers.value = {}; testResult.value = null;
+            testBook.value = b; testAnswers.value = {}; testBlanks.value = {}; testEssay.value = {}; testResult.value = null;
         };
         const submitTest = () => {
             const b = testBook.value;
-            if (Object.keys(testAnswers.value).length < b.questions.length) { toast('还有题目未作答'); return; }
-            let score = 0;
-            b.questions.forEach((q, i) => { if (testAnswers.value[i] === q.ans) score++; });
-            const ratio = score / b.questions.length;
+            const qs = b.questions || [];
+            let unanswered = false, essayTooShort = false;
+            qs.forEach((q, i) => {
+                if (q.type === 'essay') { if ((testEssay.value[i] || '').trim().length < 10) essayTooShort = true; }
+                else if (q.type === 'blank') { if (!(testBlanks.value[i] || '').trim()) unanswered = true; }
+                else if (testAnswers.value[i] === undefined) unanswered = true;
+            });
+            if (unanswered) { toast('还有题目未作答'); return; }
+            if (essayTooShort) { toast('理解题请至少写10个字'); return; }
+            let score = 0, total = 0, hasEssay = false;
+            qs.forEach((q, i) => {
+                if (q.type === 'essay') { hasEssay = true; return; }   // 理解题开放作答, 不自动判分
+                total++;
+                if (q.type === 'blank') { if (checkBlank(testBlanks.value[i], q.answer)) score++; }
+                else if (testAnswers.value[i] === q.ans) score++;
+            });
+            const ratio = total ? score / total : 1;
             testResult.value = {
-                score, total: b.questions.length,
+                score, total, hasEssay,
                 remark: ratio === 1 ? '传奇书神附体 · 满分！' : ratio >= 0.8 ? '思通达也 · 令人叹服' :
                         ratio >= 0.6 ? '渐入佳境 · 继续精进' : '学而时习之 · 再读一遍方得真意'
             };
             const u = users.value.find(x => x.username === currentUser.value.username);
             if (u) {
+                if (hasEssay) {
+                    // 理解题存档: u.essays = { 书名: [{date, text}] }, 供掌馆人查阅
+                    u.essays = u.essays || {};
+                    const list = u.essays[b.title] = u.essays[b.title] || [];
+                    qs.forEach((q, i) => {
+                        if (q.type === 'essay') {
+                            const text = (testEssay.value[i] || '').trim();
+                            if (text) list.push({ date: dateStr(), text });
+                        }
+                    });
+                }
                 u.bookScores = u.bookScores || {};
                 const prev = u.bookScores[b.title];
-                if (!prev || score > prev.score) u.bookScores[b.title] = { score, total: b.questions.length, date: dateStr() };
+                if (!prev || score > prev.score) u.bookScores[b.title] = { score, total, date: dateStr() };
                 if (currentUser.value?.username === u.username) currentUser.value = { ...u };
             }
         };
         const closeTest = () => { testBook.value = null; testResult.value = null; };
         const userScore = (title) => currentUser.value?.bookScores?.[title] || null;
+        // ---- 学生理解题查阅(掌馆人) ----
+        const essayBook = ref(null);
+        const essayEntries = ref([]);
+        const openEssays = (b) => {
+            essayBook.value = b;
+            const list = [];
+            users.value.forEach(u => {
+                const arr = (u.essays || {})[b.title] || [];
+                arr.forEach(e => list.push({ name: u.name, username: u.username, date: e.date, text: e.text }));
+            });
+            list.sort((x, y) => (y.date || '').localeCompare(x.date || ''));
+            essayEntries.value = list;
+        };
         const scoreBoard = (title) => users.value
             .filter(u => u.bookScores && u.bookScores[title])
             .map(u => ({ name: u.name, username: u.username, ...u.bookScores[title] }))
@@ -3060,7 +3161,8 @@ createApp({
             TITLES, getTitle, nextTitle, tierStyle, uTotal, tokenSvg, tokenName,
             books, bookInfo, catalogUnread, newBook, addBook, removeBook,
             qDraft, startQuestion, saveQuestion, delQuestion,
-            testBook, testAnswers, testResult, startTest, submitTest, closeTest, userScore, scoreBoard, wordsOf,
+            testBook, testAnswers, testBlanks, testEssay, testSections, testResult, startTest, submitTest, closeTest, userScore, scoreBoard, wordsOf,
+            essayBook, essayEntries, openEssays,
             activities, activeVote, activeRead, pastActivities, newVoteTitles,
             startVote, castVote, myVote, closeVote, joinReading, participantProgress, finishActivity,
             notifications, myNotifications, unreadCount, pushNotification, openNotification, markAllRead,
