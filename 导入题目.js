@@ -206,8 +206,11 @@ let addedChoice = 0, addedBlank = 0, addedEssay = 0, dupSkipped = 0;
 const unmatchedMd = [];
 const nextIdBase = Date.now();
 
+// 书名别名映射: md 中的书名 → 库内正式书名
+const TITLE_ALIAS = { '动物庄园': '动物农场' };
+
 md.books.forEach((mb, i) => {
-    let b = byTitle.get(mb.title);
+    let b = byTitle.get(TITLE_ALIAS[mb.title] || mb.title);
     if (!b) {
         unmatchedMd.push(mb.title);
         // 新建书目条目
