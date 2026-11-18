@@ -29,24 +29,25 @@ const EXTRA_CATEGORY = {
   '火牌—寻找中国': '社会纪实',
 };
 
-/** 系列归拢：同 series 值的书在书库中相邻显示并挂系列徽章 */
+/** 系列归拢：同 series 值的书在书库中相邻显示并挂系列徽章
+ *  （2026-11-18 多卷书已拆分为独立分册条目，见 拆分多卷.js） */
 const SERIES = {
   '教父': '教父系列',
   '教父2：西西里人': '教父系列',
   '教父3：最后的教父': '教父系列',
   '人类简史': '简史系列',
   '未来简史': '简史系列',
-};
-
-/** 单本多卷标记（书是一册条目，但实体分多册） */
-const VOL_NOTE = {
-  '基督山伯爵': '上下两册',
-  '国富论': '上下两册',
-  '白夜行': '上下两册',
-  '资本论': '三卷本',
-  '平凡的世界': '三卷本',
-  '明朝那些事儿': '九册合集',
-  '三体': '三部曲合集',
+  '白夜行（上册）': '白夜行系列', '白夜行（下册）': '白夜行系列',
+  '基督山伯爵（上册）': '基督山伯爵系列', '基督山伯爵（下册）': '基督山伯爵系列',
+  '国富论（上册）': '国富论系列', '国富论（下册）': '国富论系列',
+  '三体（第一部）': '三体系列', '三体（第二部）': '三体系列', '三体（第三部）': '三体系列',
+  '资本论（第一卷）': '资本论系列', '资本论（第二卷）': '资本论系列', '资本论（第三卷）': '资本论系列',
+  '平凡的世界（第一部）': '平凡的世界系列', '平凡的世界（第二部）': '平凡的世界系列', '平凡的世界（第三部）': '平凡的世界系列',
+  '明朝那些事儿（第一册）': '明朝那些事儿系列', '明朝那些事儿（第二册）': '明朝那些事儿系列',
+  '明朝那些事儿（第三册）': '明朝那些事儿系列', '明朝那些事儿（第四册）': '明朝那些事儿系列',
+  '明朝那些事儿（第五册）': '明朝那些事儿系列', '明朝那些事儿（第六册）': '明朝那些事儿系列',
+  '明朝那些事儿（第七册）': '明朝那些事儿系列', '明朝那些事儿（第八册）': '明朝那些事儿系列',
+  '明朝那些事儿（第九册）': '明朝那些事儿系列',
 };
 
 /** 从清单解析 书名→分类：只认「| **分类** |」标题行与其后的数据行 */
@@ -83,14 +84,16 @@ function main() {
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
     const before = { usersCount: data.users.length, bookCount: data.books.length };
 
-    let updated = 0, catSet = new Set(), seriesN = 0, volN = 0;
+    let updated = 0, catSet = new Set(), seriesN = 0;
     const unknown = [];
+    // 分类匹配：精确书名 → 清单外人工归类 → 去掉分册后缀回退到原书名（拆分多卷.js 产生的条目）
+    const catOf = (t) => catMap[t] || EXTRA_CATEGORY[t] || catMap[t.replace(/（[^）]*）$/, '')];
     for (const b of data.books) {
-      const cat = catMap[b.title] || EXTRA_CATEGORY[b.title];
+      const cat = catOf(b.title);
       if (!cat) { unknown.push(b.title); continue; }
       b.category = cat;
       if (SERIES[b.title]) { b.series = SERIES[b.title]; seriesN++; } else delete b.series;
-      if (VOL_NOTE[b.title]) { b.volNote = VOL_NOTE[b.title]; volN++; } else delete b.volNote;
+      delete b.volNote; // 多卷已拆分为独立条目，册数标记不再使用
       catSet.add(cat);
       updated++;
     }
@@ -113,7 +116,7 @@ function main() {
       const b = after.books.find((x) => x.title === t);
       if (b && b.series !== s) errs.push(`《${t}》series=${b.series} 应为 ${s}`);
     }
-    console.log(`  分类写入: ${okCat} 本 · 系列标记 ${seriesN} 本 · 多卷标记 ${volN} 本`);
+    console.log(`  分类写入: ${okCat} 本 · 系列标记 ${seriesN} 本`);
     console.log(`  分类全集: [${[...catSet].join('、')}]`);
     console.log(`  校验: ${errs.length === 0 ? '✅ 全部通过' : '❌ ' + errs.join('; ')}`);
     totalErrs += errs.length;

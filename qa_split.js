@@ -1,0 +1,32 @@
+const { chromium } = require('playwright-core');
+const path = require('path'), os = require('os');
+(async () => {
+  const exe = path.join(os.homedir(), 'AppData', 'Local', 'ms-playwright', 'chromium_headless_shell-1254', 'chrome-headless-shell-win64', 'chrome-headless-shell.exe');
+  const browser = await chromium.launch({ executablePath: exe, args: ['--no-sandbox'] });
+  const page = await browser.newPage();
+  const errors = [];
+  // 拦截外部 CDN（字体等），避免网络挂起阻塞页面加载
+  await page.route('**/*', r => r.request().url().startsWith('http://127.0.0.1') ? r.continue() : r.abort());
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto('http://127.0.0.1:8765', { waitUntil: 'domcontentloaded', timeout: 20000 });
+  await page.waitForSelector('.nav-card', { timeout: 15000 });
+  await page.waitForTimeout(800);
+  await page.locator('.nav-card:has-text("书库")').first().click();
+  await page.waitForTimeout(500);
+  const cards = await page.locator('.shelf-book').allInnerTexts();
+  const log = (n, p, d) => console.log(`${p ? '✅' : '❌'} ${n}${d ? ' · ' + d : ''}`);
+  log('书库渲染 ≥100（本地测试记录多 1 张聚合卡）', cards.length >= 100, cards.length + ' 张卡');
+  const idx = t => cards.map((c, i) => c.includes(t) ? i : -1).filter(i => i >= 0);
+  const by = idx('白夜行（');
+  log('白夜行分册 2 张相邻', by.length === 2 && by[1] === by[0] + 1, '位置 ' + by);
+  log('白夜行带系列徽章', by.length === 2 && cards[by[0]].includes('白夜行系列'));
+  const mt = idx('明朝那些事儿（');
+  log('明朝 9 册相邻', mt.length === 9 && mt.every((v, i) => i === 0 || v === mt[i - 1] + 1), '位置 ' + mt[0] + '-' + mt[8]);
+  const st = idx('三体（');
+  log('三体 3 部相邻', st.length === 3 && st[1] === st[0] + 1 && st[2] === st[0] + 2);
+  const up = cards.find(c => c.includes('白夜行（上册）'));
+  log('上册字数正确(17.5万字)', !!up && up.includes('17.5'), '命中 17.5 万字');
+  log('无 JS 报错', errors.length === 0, errors[0] || '');
+  await browser.close();
+  process.exitCode = errors.length ? 1 : 0;
+})().catch(e => { console.error('QA 异常:', e.message); process.exit(1); });
