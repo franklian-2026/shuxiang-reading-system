@@ -777,6 +777,30 @@ body::before { opacity: .38; }
 .token-cell .token-sub { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
 .token-cell .token-sub.got { color: #3e7d46; }
 
+/* ---- 在线阅读器 ---- */
+.reader-wrap { position:fixed; inset:0; z-index:900; display:flex; flex-direction:column; background:#faf6ec; transition:background .3s; }
+.reader-wrap.t-paper { background:#f5efe0; }
+.reader-wrap.t-green { background:#e3ede3; }
+.reader-wrap.t-dark  { background:#1c1c1c; }
+.reader-toolbar { display:flex; align-items:center; gap:10px; padding:10px 18px; border-bottom:1px solid rgba(58,53,48,.15); flex-shrink:0; flex-wrap:wrap; }
+.reader-wrap.t-dark .reader-toolbar { border-color:rgba(255,255,255,.15); }
+.reader-toolbar .rt-title { flex:1; font-size:16px; letter-spacing:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:120px; }
+.rt-btn { border:1px solid rgba(58,53,48,.25); background:transparent; color:inherit; border-radius:8px; padding:5px 12px; font-size:15px; cursor:pointer; font-family:inherit; }
+.rt-btn:hover { background:rgba(158,43,37,.08); }
+.reader-body { flex:1; overflow-y:auto; padding:34px 8% 60px; }
+.reader-chapter-title { font-size:1.35em; font-weight:bold; letter-spacing:3px; margin:0 0 26px; padding-bottom:14px; border-bottom:1px dashed rgba(58,53,48,.3); }
+.reader-text { line-height:1.95; letter-spacing:.06em; white-space:pre-wrap; text-align:justify; }
+.reader-foot { display:flex; justify-content:space-between; align-items:center; padding:10px 18px; border-top:1px solid rgba(58,53,48,.15); flex-shrink:0; }
+.reader-wrap.t-dark .reader-foot { border-color:rgba(255,255,255,.15); }
+.reader-progress { height:4px; background:rgba(158,43,37,.15); }
+.reader-progress .rp-fill { height:100%; background:var(--cinnabar); transition:width .25s; }
+.reader-wrap.t-dark, .reader-wrap.t-dark .reader-toolbar, .reader-wrap.t-dark .reader-foot { color:#d8d2c4; }
+.reader-toc-item { padding:10px 14px; border-bottom:1px dashed var(--line); cursor:pointer; font-size:16px; }
+.reader-toc-item:hover { background:rgba(158,43,37,.06); }
+.reader-toc-item.cur { color:var(--cinnabar); font-weight:bold; }
+.upload-tip { font-size:14px; color:var(--ink-3); line-height:1.8; }
+.review-row { display:flex; align-items:center; gap:14px; padding:12px 8px; border-top:1px solid var(--line-2); font-size:16px; flex-wrap:wrap; }
+
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after {
         animation-duration: .01ms !important;
@@ -1326,6 +1350,7 @@ body::before { opacity: .38; }
     <div v-else-if="currentPage === 'books'" class="page">
         <div class="page-head">
             <div class="page-title brush"><span class="title-seal">书</span>书库</div>
+            <button class="btn plain sm" v-if="currentUser && SERVER_MODE" @click="openUpload">📚 导入书籍</button>
             <button class="btn plain sm" @click="goToPage('home')">← 返回</button>
         </div>
         <div class="shelf-grid">
@@ -1335,7 +1360,11 @@ body::before { opacity: .38; }
                     <h3 class="wall-book">《{{ b.title }}》</h3>
                     <div class="book-sub">👥 {{ b.readers.length }} 人在读 · ✍ {{ b.reflections.length }} 篇心得</div>
                     <div class="book-sub" v-if="b.totalPages">全书 {{ b.totalPages }} 页</div>
-                    <div class="nav-tag" style="margin-top:12px;">查看详情 →</div>
+                    <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
+                        <span class="nav-tag" v-if="b.content && b.content.status === 'approved'" style="color:var(--cinnabar); border-color:var(--cinnabar); cursor:pointer;" @click.stop="openReader(b)">📖 在线阅读</span>
+                        <span class="nav-tag plain" v-else-if="b.content && b.content.status === 'pending'">⏳ 书源审核中</span>
+                        <span class="nav-tag plain">查看详情 →</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1377,6 +1406,11 @@ body::before { opacity: .38; }
                 <span>📐 难度 {{ ['☆','★','★★','★★★','★★★★','★★★★★'][selectedBook.info.difficulty] || '★★★' }}</span>
                 <span>📖 全书 {{ selectedBook.info.totalPages }} 页</span>
             </div>
+            <div style="display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap;" v-if="selectedBook.content && selectedBook.content.status === 'approved' && currentUser">
+                <button class="btn" style="background:linear-gradient(135deg,#9e2b25,#b3572e);" @click="openReader(selectedBook.info)">📖 {{ myReadPercent(selectedBook.title) > 0 ? '继续阅读 · 已读 ' + myReadPercent(selectedBook.title) + '%' : '开始阅读' }}</button>
+                <span class="nav-tag plain" v-if="selectedBook.content.size">正文 {{ (selectedBook.content.size / 1e4).toFixed(1) }} 万字节 · 上传者 {{ selectedBook.content.uploadedBy }}</span>
+            </div>
+            <div style="margin-top:14px; color:var(--ink-3); font-size:15px;" v-else-if="selectedBook.content && selectedBook.content.status === 'pending'">⏳ 此书已有人上传书源，正待掌馆人审核，通过后即可在线阅读</div>
             <div style="display:flex; align-items:center; gap:16px; margin-top:16px; flex-wrap:wrap;" v-if="selectedBook.questions.length">
                 <button class="btn" @click="startTest(selectedBook.info)">🧠 开始思维测评（{{ selectedBook.questions.length }} 题）</button>
                 <span class="nav-tag plain" v-if="userScore(selectedBook.title)">我的最好成绩 {{ userScore(selectedBook.title).score }}/{{ userScore(selectedBook.title).total }} · {{ userScore(selectedBook.title).date }}</span>
@@ -1417,6 +1451,53 @@ body::before { opacity: .38; }
             <div class="card frame" style="padding:18px 26px; margin-bottom:12px; cursor:pointer;" v-for="p in bookPosts" :key="p.id" @click="goToPage('forum')">
                 <b>{{ p.title }}</b>
                 <span style="color:var(--ink-3); font-size:14px; margin-left:10px;">{{ p.authorName }} · {{ p.replies.length }} 回帖</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== 在线阅读器 ========== -->
+    <div v-if="readerBook" class="reader-wrap" :class="'t-' + readerTheme">
+        <div class="reader-toolbar">
+            <button class="rt-btn" @click="closeReader">← 书库</button>
+            <span class="rt-title">《{{ readerBook.title }}》</span>
+            <button class="rt-btn" @click="showToc = !showToc">目录</button>
+            <button class="rt-btn" @click="readerFont = Math.max(14, readerFont - 2); localStorage.setItem('reader_font', readerFont)">A-</button>
+            <button class="rt-btn" @click="readerFont = Math.min(30, readerFont + 2); localStorage.setItem('reader_font', readerFont)">A+</button>
+            <button class="rt-btn" @click="cycleTheme">背景</button>
+        </div>
+        <div class="reader-progress"><div class="rp-fill" :style="{ width: readerPercent + '%' }"></div></div>
+        <div class="reader-body" ref="readerBodyEl" @scroll="onReaderScroll" :style="{ fontSize: readerFont + 'px' }">
+            <div class="reader-chapter-title">{{ readerChapters[readerIdx] ? readerChapters[readerIdx].title : '' }}</div>
+            <div class="reader-text">{{ readerChapterText }}</div>
+        </div>
+        <div class="reader-foot">
+            <button class="rt-btn" :disabled="readerIdx <= 0" @click="goChapter(readerIdx - 1)">← 上一章</button>
+            <span style="font-size:14px; opacity:.75;">{{ readerChapters.length ? (readerIdx + 1) + ' / ' + readerChapters.length : '' }} · 已读 {{ Math.round(readerPercent) }}%</span>
+            <button class="rt-btn" :disabled="readerIdx >= readerChapters.length - 1" @click="goChapter(readerIdx + 1)">下一章 →</button>
+        </div>
+        <div v-if="showToc" class="overlay" @click.self="showToc = false">
+            <div class="card frame dlg" style="max-height:70vh; overflow:auto;">
+                <h2>📖 目录</h2>
+                <div class="reader-toc-item" v-for="(c, i) in readerChapters" :key="i" :class="{ cur: i === readerIdx }" @click="goChapter(i); showToc = false;">{{ c.title }}</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入书籍弹窗 -->
+    <div v-if="showUpload" class="overlay" @click.self="showUpload = false">
+        <div class="card frame dlg">
+            <h2>📚 导入书籍</h2>
+            <div class="upload-tip" style="margin-bottom:16px;">
+                选择 TXT 文本文件上传（30MB 以内），上传后需掌馆人审核通过，全会同学即可在线阅读。<br>
+                ⚠ 只上传你有权分享的书（自己整理的文本、公版书），尊重作者版权。
+            </div>
+            <div class="fg"><label>书名</label><input v-model="uploadTitle" placeholder="例：三体"></div>
+            <div class="fg"><label>作者（选填）</label><input v-model="uploadAuthor" placeholder="例：刘慈欣"></div>
+            <div class="fg"><label>TXT 文件</label><input type="file" accept=".txt,text/plain" @change="onUploadFile"></div>
+            <div style="display:flex; gap:12px; align-items:center;">
+                <button class="btn" :disabled="uploading" @click="doUpload">↑ 上传并提交审核</button>
+                <button class="btn plain sm" @click="showUpload = false">取消</button>
+                <span v-if="uploading" style="color:var(--ink-3); font-size:14px;">上传中…</span>
             </div>
         </div>
     </div>
@@ -1777,6 +1858,28 @@ body::before { opacity: .38; }
                     </div>
                 </div>
             </div>
+
+            <div class="admin-section">
+                <h3 style="font-size:22px; letter-spacing:3px;">📖 书源审核 <span style="font-size:15px; color:var(--ink-3);">(同学上传的书籍正文 · 通过后全会可在线阅读)</span></h3>
+                <div v-if="pendingContents.length">
+                    <div class="review-row" v-for="b in pendingContents" :key="b.title">
+                        <b>《{{ b.title }}》</b>
+                        <span style="color:var(--ink-3); font-size:14px;">{{ (b.content.size / 1e4).toFixed(1) }} 万字节 · 上传者 {{ b.content.uploadedBy }} · {{ new Date(b.content.uploadedAt).toLocaleString('zh-CN') }}</span>
+                        <button class="btn sm" @click="reviewContent(b.title, 'approve')">✓ 通过</button>
+                        <button class="btn red sm" @click="reviewContent(b.title, 'reject')">驳回</button>
+                    </div>
+                </div>
+                <p v-else style="color:var(--ink-3); font-size:15px; margin-top:12px;">暂无待审核书源</p>
+                <div class="form-title" style="margin:18px 0 6px;" v-if="approvedContents.length">已过审书源</div>
+                <div v-if="approvedContents.length">
+                    <div class="review-row" v-for="b in approvedContents" :key="b.title">
+                        <b>《{{ b.title }}》</b>
+                        <span style="color:var(--ink-3); font-size:14px;">{{ (b.content.size / 1e4).toFixed(1) }} 万字节</span>
+                        <button class="btn plain sm" @click="previewContent(b)">预览</button>
+                        <button class="btn red sm" @click="reviewContent(b.title, 'delete')">删除书源</button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -1877,7 +1980,7 @@ body::before { opacity: .38; }
 `,-1),a())),e.components.length&&(ao(e.components,"component",n),(e.directives.length||e.temps>0)&&a()),e.directives.length&&(ao(e.directives,"directive",n),e.temps>0&&a()),e.temps>0){i("let ");for(let t=0;t<e.temps;t++)i(`${t>0?", ":""}_temp${t}`)}return(e.components.length||e.directives.length||e.temps)&&(i(`
 `,0),a()),c||i("return "),e.codegenNode?au(e.codegenNode,n):i("null"),h&&(o(),i("}")),o(),i("}"),{ast:e,code:n.code,preamble:"",map:n.map?n.map.toJSON():void 0}}(o,s)}(e,k({},aX,t,{nodeTransforms:[a2,...a3,...t.nodeTransforms||[]],directiveTransforms:k({},a6,t.directiveTransforms||{}),transformHoist:null}))}(e,i),s=Function(l)();return s._rc=!0,a4[n]=s}return iU(a8),e.BaseTransition=nx,e.BaseTransitionPropsValidators=n_,e.Comment=io,e.DeprecationTypes=null,e.EffectScope=eb,e.ErrorCodes={SETUP_FUNCTION:0,0:"SETUP_FUNCTION",RENDER_FUNCTION:1,1:"RENDER_FUNCTION",NATIVE_EVENT_HANDLER:5,5:"NATIVE_EVENT_HANDLER",COMPONENT_EVENT_HANDLER:6,6:"COMPONENT_EVENT_HANDLER",VNODE_HOOK:7,7:"VNODE_HOOK",DIRECTIVE_HOOK:8,8:"DIRECTIVE_HOOK",TRANSITION_HOOK:9,9:"TRANSITION_HOOK",APP_ERROR_HANDLER:10,10:"APP_ERROR_HANDLER",APP_WARN_HANDLER:11,11:"APP_WARN_HANDLER",FUNCTION_REF:12,12:"FUNCTION_REF",ASYNC_COMPONENT_LOADER:13,13:"ASYNC_COMPONENT_LOADER",SCHEDULER:14,14:"SCHEDULER",COMPONENT_UPDATE:15,15:"COMPONENT_UPDATE",APP_UNMOUNT_CLEANUP:16,16:"APP_UNMOUNT_CLEANUP"},e.ErrorTypeStrings=null,e.Fragment=il,e.KeepAlive={name:"KeepAlive",__isKeepAlive:!0,props:{include:[String,RegExp,Array],exclude:[String,RegExp,Array],max:[String,Number]},setup(e,{slots:t}){let n=iL(),r=n.ctx,i=new Map,l=new Set,s=null,o=n.suspense,{renderer:{p:a,m:c,um:u,o:{createElement:d}}}=r,h=d("div");function f(e){n1(e),u(e,n,o,!0)}function p(e){i.forEach((t,n)=>{let r=iz(nJ(t)?t.type.__asyncResolved||{}:t.type);r&&!e(r)&&g(n)})}function g(e){let t=i.get(e);!t||s&&ib(t,s)?s&&(n1(s),t&&n1(t)):f(t),i.delete(e),l.delete(e)}r.activate=(e,t,n,r,i)=>{let l=e.component;c(e,t,n,0,o),a(l.vnode,e,t,n,l,o,r,e.slotScopeIds,i),rZ(()=>{l.isDeactivated=!1,l.a&&K(l.a);let t=e.props&&e.props.onVnodeMounted;t&&iO(t,l.parent,e)},o)},r.deactivate=e=>{let t=e.component;r4(t.m),r4(t.a),c(e,h,null,1,o),rZ(()=>{t.da&&K(t.da);let n=e.props&&e.props.onVnodeUnmounted;n&&iO(n,t.parent,e),t.isDeactivated=!0},o)},ni(()=>[e.include,e.exclude],([e,t])=>{e&&p(t=>nQ(e,t)),t&&p(e=>!nQ(t,e))},{flush:"post",deep:!0});let m=null,y=()=>{null!=m&&(r5(n.subTree.type)?rZ(()=>{let e=n2(n.subTree);e.component&&i.set(m,e)},n.subTree.suspense):i.set(m,n2(n.subTree)))};return n8(y),n9(y),n7(()=>{i.forEach(e=>{let{subTree:t,suspense:r}=n,i=n2(t);if(e.type===i.type&&e.key===i.key){n1(i);let e=i.component.da;e&&rZ(e,r);return}f(e)})}),()=>{if(m=null,!t.default)return s=null;let n=t.default(),r=n[0];if(n.length>1)return s=null,n;if(!iv(r)||!(4&r.shapeFlag)&&!(128&r.shapeFlag))return s=null,r;let o=n2(r);if(o.type===io)return s=null,o;let a=o.type,c=iz(nJ(o)?o.type.__asyncResolved||{}:a),{include:u,exclude:d,max:h}=e;if(u&&(!c||!nQ(u,c))||d&&c&&nQ(d,c))return o.shapeFlag&=-257,s=o,r;let f=null==o.key?a:o.key,p=i.get(f);return o.el&&(o=iT(o),128&r.shapeFlag&&(r.ssContent=o)),m=f,p?(o.el=p.el,o.component=p.component,o.transition&&nN(o,o.transition),o.shapeFlag|=512,l.delete(f),l.add(f)):(l.add(f),h&&l.size>parseInt(h,10)&&g(l.values().next().value)),o.shapeFlag|=256,s=o,r5(r.type)?r:o}}},e.ReactiveEffect=eS,e.Static=ia,e.Suspense={name:"Suspense",__isSuspense:!0,process(e,t,n,r,i,l,s,o,a,c){if(null==e)!function(e,t,n,r,i,l,s,o,a){let{p:c,o:{createElement:u}}=a,d=u("div"),h=e.suspense=ie(e,i,r,t,d,n,l,s,o,a);c(null,h.pendingBranch=e.ssContent,d,null,r,h,l,s),h.deps>0?(r7(e,"onPending"),r7(e,"onFallback"),c(null,e.ssFallback,t,n,r,null,l,s),ii(h,e.ssFallback)):h.resolve(!1,!0)}(t,n,r,i,l,s,o,a,c);else{if(l&&l.deps>0&&!e.suspense.isInFallback&&!l.isHydrating){t.suspense=e.suspense,t.suspense.vnode=t,t.el=e.el;return}!function(e,t,n,r,i,l,s,o,{p:a,um:c,o:{createElement:u}}){let d=t.suspense=e.suspense;d.vnode=t,t.el=e.el;let h=t.ssContent,f=t.ssFallback,{activeBranch:p,pendingBranch:g,isInFallback:m,isHydrating:y}=d;if(g)d.pendingBranch=h,ib(g,h)?(d.deps++,a(g,h,y?n:d.hiddenContainer,null,i,d,l,s,o),d.deps--,d.deps<=0?d.resolve():!m||y||d.isFallbackMountPending||(a(p,f,n,r,i,null,l,s,o),ii(d,f))):(d.pendingId=r9++,y?(d.isHydrating=!1,d.activeBranch=g):c(g,i,d),d.deps=0,d.effects.length=0,d.hiddenContainer=u("div"),m?(a(null,h,d.hiddenContainer,null,i,d,l,s,o),d.deps<=0?d.resolve():d.isFallbackMountPending||(a(p,f,n,r,i,null,l,s,o),ii(d,f))):p&&ib(p,h)?(a(p,h,n,r,i,d,l,s,o),d.resolve(!0)):(a(null,h,d.hiddenContainer,null,i,d,l,s,o),d.deps<=0&&d.resolve()));else if(p&&ib(p,h))a(p,h,n,r,i,d,l,s,o),ii(d,h);else if(r7(t,"onPending"),d.pendingBranch=h,512&h.shapeFlag?d.pendingId=h.component.suspenseId:d.pendingId=r9++,a(null,h,d.hiddenContainer,null,i,d,l,s,o),d.deps<=0)d.resolve();else{let{timeout:e,pendingId:t}=d;e>0?setTimeout(()=>{d.pendingId===t&&d.fallback(f)},e):0===e&&d.fallback(f)}}(e,t,n,r,i,s,o,a,c)}},hydrate:function(e,t,n,r,i,l,s,o,a){let c=t.suspense=ie(t,r,n,e.parentNode,document.createElement("div"),null,i,l,s,o,!0),u=a(e,c.pendingBranch=t.ssContent,n,c,l,s);return 0===c.deps&&c.resolve(!1,!0),u},normalize:function(e){let{shapeFlag:t,children:n}=e,r=32&t;e.ssContent=it(r?n.default:n),e.ssFallback=r?it(n.fallback):iC(io)}},e.Teleport={name:"Teleport",__isTeleport:!0,process(e,t,n,r,i,l,s,o,a,c){let{mc:u,pc:d,pbc:h,o:{insert:f,querySelector:p,createText:g,parentNode:m}}=c,y=nc(t.props),{dynamicChildren:v}=t,b=(e,t,n)=>{16&e.shapeFlag&&u(e.children,t,n,i,l,s,o,a)},_=(e=t)=>{let n=nc(e.props),r=e.target=nh(e.props,p),l=ng(r,e,g,f);r&&("svg"!==s&&nu(r)?s="svg":"mathml"!==s&&nd(r)&&(s="mathml"),i&&i.isCE&&(i.ce._teleportTargets||(i.ce._teleportTargets=new Set)).add(r),n||(b(e,r,l),np(e,!1)))},S=e=>{let t=()=>{if(no.get(e)===t){if(no.delete(e),nc(e.props)){let t=m(e.el)||n;b(e,t,e.anchor),np(e,!0)}_(e)}};no.set(e,t),rZ(t,l)};if(null==e){let e,i=t.el=g(""),s=t.anchor=g("");if(f(i,n,r),f(s,n,r),(e=t.props)&&(e.defer||""===e.defer)||l&&l.pendingBranch)return void S(t);y&&(b(t,n,s),np(t,!0)),_()}else{t.el=e.el;let r=t.anchor=e.anchor,u=no.get(e);if(u){u.flags|=8,no.delete(e),S(t);return}t.targetStart=e.targetStart;let f=t.target=e.target,g=t.targetAnchor=e.targetAnchor,m=nc(e.props),b=m?n:f,_=m?r:g;if("svg"===s||nu(f)?s="svg":("mathml"===s||nd(f))&&(s="mathml"),v?(h(e.dynamicChildren,v,b,i,l,s,o),r6(e,t,!0)):a||d(e,t,b,_,i,l,s,o,!1),y)m?t.props&&e.props&&t.props.to!==e.props.to&&(t.props.to=e.props.to):nf(t,n,r,c,1);else if((t.props&&t.props.to)!==(e.props&&e.props.to)){let e=nh(t.props,p);e&&(t.target=e,nf(t,e,null,c,0))}else m&&nf(t,f,g,c,1);np(t,y)}},remove(e,t,n,{um:r,o:{remove:i}},l){let{shapeFlag:s,children:o,anchor:a,targetStart:c,targetAnchor:u,target:d,props:h}=e,f=nc(h),p=l||!f,g=no.get(e);if(g&&(g.flags|=8,no.delete(e)),d&&(i(c),i(u)),l&&i(a),!g&&(f||d)&&16&s)for(let e=0;e<o.length;e++){let i=o[e];r(i,t,n,p,!!i.dynamicChildren)}},move:nf,hydrate:function(e,t,n,r,i,l,{o:{nextSibling:s,parentNode:o,querySelector:a,insert:c,createText:u}},d){function h(e,n){let r=n;for(;r;){if(r&&8===r.nodeType){if("teleport start anchor"===r.data)t.targetStart=r;else if("teleport anchor"===r.data){t.targetAnchor=r,e._lpa=t.targetAnchor&&s(t.targetAnchor);break}}r=s(r)}}function f(e,t){t.anchor=d(s(e),t,o(e),n,r,i,l)}let p=t.target=nh(t.props,a),g=nc(t.props);if(p){let a=p._lpa||p.firstChild;16&t.shapeFlag&&(g?(f(e,t),h(p,a),t.targetAnchor||ng(p,t,u,c,o(e)===p?e:null)):(t.anchor=s(e),h(p,a),t.targetAnchor||ng(p,t,u,c),d(a&&s(a),t,p,n,r,i,l))),np(t,g)}else g&&16&t.shapeFlag&&(f(e,t),t.targetStart=e,t.targetAnchor=s(e));return t.anchor&&s(t.anchor)}},e.Text=is,e.TrackOpTypes={GET:"get",HAS:"has",ITERATE:"iterate"},e.Transition=i9,e.TransitionGroup=lU,e.TriggerOpTypes={SET:"set",ADD:"add",DELETE:"delete",CLEAR:"clear"},e.VueElement=lF,e.assertNumber=function(e,t){},e.callWithAsyncErrorHandling=tU,e.callWithErrorHandling=tB,e.camelize=j,e.capitalize=H,e.cloneVNode=iT,e.compatUtils=null,e.compile=a8,e.computed=iJ,e.createApp=sl,e.createBlock=iy,e.createCommentVNode=iN,e.createElementBlock=function(e,t,n,r,i,l){return im(ix(e,t,n,r,i,l,!0))},e.createElementVNode=ix,e.createHydrationRenderer=rY,e.createPropsRestProxy=function(e,t){let n={};for(let r in e)t.includes(r)||Object.defineProperty(n,r,{enumerable:!0,get:()=>e[r]});return n},e.createRenderer=function(e){return r0(e)},e.createSSRApp=ss,e.createSlots=function(e,t){for(let n=0;n<t.length;n++){let r=t[n];if(A(r))for(let t=0;t<r.length;t++)e[r[t].name]=r[t].fn;else r&&(e[r.name]=r.key?(...e)=>{let t=r.fn(...e);return t&&(t.key=r.key),t}:r.fn)}return e},e.createStaticVNode=function(e,t){let n=iC(ia,null,e);return n.staticCount=t,n},e.createTextVNode=iw,e.createVNode=iC,e.customRef=tM,e.defineAsyncComponent=function(e){let t;E(e)&&(e={loader:e});let{loader:n,loadingComponent:r,errorComponent:i,delay:l=200,hydrate:s,timeout:o,suspensible:a=!0,onError:c}=e,u=null,d=0,h=()=>{let e;return u||(e=u=n().catch(e=>{if(e=e instanceof Error?e:Error(String(e)),c)return new Promise((t,n)=>{c(e,()=>t((d++,u=null,h())),()=>n(e),d+1)});throw e}).then(n=>e!==u&&u?u:(n&&(n.__esModule||"Module"===n[Symbol.toStringTag])&&(n=n.default),t=n,n)))};return nI({name:"AsyncComponentWrapper",__asyncLoader:h,__asyncHydrate(e,n,r){let i=e.isConnected,l=!1;(n.bu||(n.bu=[])).push(()=>l=!0);let o=()=>{l||e.parentNode&&(!i||e.isConnected)&&r()},a=s?()=>{let t=s(o,t=>(function(e,t){if(nV(e)&&"["===e.data){let n=1,r=e.nextSibling;for(;r;){if(1===r.nodeType){if(!1===t(r))break}else if(nV(r))if("]"===r.data){if(0==--n)break}else"["===r.data&&n++;r=r.nextSibling}}else t(e)})(e,t));t&&(n.bum||(n.bum=[])).push(t)}:o;t?a():h().then(()=>!n.isUnmounted&&a())},get __asyncResolved(){return t},setup(){let e,n,s=iF;if(nR(s),t)return()=>nG(t,s);let c=e=>{u=null,tH(e,s,13,!i)};if(a&&s.suspense)return h().then(e=>()=>nG(e,s)).catch(e=>(c(e),()=>i?iC(i,{error:e}):null));let d=tT(!1),f=tT(),p=tT(!!l);return re(()=>{null!=e&&clearTimeout(e),null!=n&&clearTimeout(n)}),l&&(n=setTimeout(()=>{s.isUnmounted||(p.value=!1)},l)),null!=o&&(e=setTimeout(()=>{if(!s.isUnmounted&&!d.value&&!f.value){let e=Error(`Async component timed out after ${o}ms.`);c(e),f.value=e}},o)),h().then(()=>{!s.isUnmounted&&(d.value=!0,s.parent&&nX(s.parent.vnode)&&s.parent.update())}).catch(e=>{if(s.isUnmounted){u=null;return}c(e),f.value=e}),()=>d.value&&t?nG(t,s):f.value&&i?iC(i,{error:f.value}):r&&!p.value?nG(r,s):void 0}})},e.defineComponent=nI,e.defineCustomElement=lM,e.defineEmits=function(){return null},e.defineExpose=function(e){},e.defineModel=function(){},e.defineOptions=function(e){},e.defineProps=function(){return null},e.defineSSRCustomElement=(e,t)=>lM(e,t,ss),e.defineSlots=function(){return null},e.devtools=void 0,e.effect=function(e,t){e.effect instanceof eS&&(e=e.effect.fn);let n=new eS(e);t&&k(n,t);try{n.run()}catch(e){throw n.stop(),e}let r=n.run.bind(n);return r.effect=n,r},e.effectScope=function(e){return new eb(e)},e.getCurrentInstance=iL,e.getCurrentScope=function(){return l},e.getCurrentWatcher=function(){return g},e.getTransitionRawChildren=nA,e.guardReactiveProps=ik,e.h=iG,e.handleError=tH,e.hasInjectionContext=function(){return!!(iL()||rA)},e.hydrate=(...e)=>{sr().hydrate(...e)},e.hydrateOnIdle=(e=1e4)=>t=>{let n=nK(t,{timeout:e});return()=>nz(n)},e.hydrateOnInteraction=(e=[])=>(t,n)=>{I(e)&&(e=[e]);let r=!1,i=e=>{r||(r=!0,l(),t(),e.target.dispatchEvent(new e.constructor(e.type,e)))},l=()=>{n(t=>{for(let n of e)t.removeEventListener(n,i)})};return n(t=>{for(let n of e)t.addEventListener(n,i,{once:!0})}),l},e.hydrateOnMediaQuery=e=>t=>{if(e){let n=matchMedia(e);if(!n.matches)return n.addEventListener("change",t,{once:!0}),()=>n.removeEventListener("change",t);t()}},e.hydrateOnVisible=e=>(t,n)=>{let r=new IntersectionObserver(e=>{for(let n of e)if(n.isIntersecting){r.disconnect(),t();break}},e),i=e=>{if(function(e){let{top:t,left:n,bottom:r,right:i}=e.getBoundingClientRect(),{innerHeight:l,innerWidth:s}=window;return(t>0&&t<l||r>0&&r<l)&&(n>0&&n<s||i>0&&i<s)}(e))return t(),r.disconnect(),!1;if("contents"===getComputedStyle(e).display){for(let t=0;t<e.children.length;t++)if(!1===i(e.children[t]))return!1}r.observe(e)};return n(e=>{if(e instanceof Element)return i(e)}),()=>r.disconnect()},e.initCustomFormatter=function(){},e.initDirectivesForSSR=_,e.inject=nt,e.isMemoSame=iX,e.isProxy=tb,e.isReactive=tm,e.isReadonly=ty,e.isRef=tk,e.isRuntimeOnly=()=>!d,e.isShallow=tv,e.isVNode=iv,e.markRaw=tS,e.mergeDefaults=function(e,t){let n=rg(e);for(let e in t){if(e.startsWith("__skip"))continue;let r=n[e];r?A(r)||E(r)?r=n[e]={type:r,default:t[e]}:r.default=t[e]:null===r&&(r=n[e]={default:t[e]}),r&&t[`__skip_${e}`]&&(r.skipFactory=!0)}return n},e.mergeModels=function(e,t){return e&&t?A(e)&&A(t)?e.concat(t):k({},rg(e),rg(t)):e||t},e.mergeProps=iR,e.nextTick=tQ,e.nodeOps=i2,e.normalizeClass=er,e.normalizeProps=function(e){if(!e)return null;let{class:t,style:n}=e;return t&&!I(t)&&(e.class=er(t)),n&&(e.style=Z(n)),e},e.normalizeStyle=Z,e.onActivated=nZ,e.onBeforeMount=n4,e.onBeforeUnmount=n7,e.onBeforeUpdate=n5,e.onDeactivated=nY,e.onErrorCaptured=ri,e.onMounted=n8,e.onRenderTracked=rr,e.onRenderTriggered=rn,e.onScopeDispose=function(e,t=!1){l&&l.cleanups.push(e)},e.onServerPrefetch=rt,e.onUnmounted=re,e.onUpdated=n9,e.onWatcherCleanup=tV,e.openBlock=id,e.patchProp=lR,e.popScopeId=function(){t8=null},e.provide=ne,e.proxyRefs=tR,e.pushScopeId=function(e){t8=e},e.queuePostFlushCb=t0,e.reactive=th,e.readonly=tp,e.ref=tT,e.registerRuntimeCompiler=iU,e.render=si,e.renderList=function(e,t,n,r){let i,l=n&&n[r],s=A(e);if(s||I(e)){let n=s&&tm(e),r=!1,o=!1;n&&(r=!tv(e),o=ty(e),e=eW(e)),i=Array(e.length);for(let n=0,s=e.length;n<s;n++)i[n]=t(r?o?tC(tx(e[n])):tx(e[n]):e[n],n,void 0,l&&l[n])}else if("number"==typeof e)if(!Number.isInteger(e)||e<0)i=[];else{i=Array(e);for(let n=0;n<e;n++)i[n]=t(n+1,n,void 0,l&&l[n])}else if(O(e))if(e[Symbol.iterator])i=Array.from(e,(e,n)=>t(e,n,void 0,l&&l[n]));else{let n=Object.keys(e);i=Array(n.length);for(let r=0,s=n.length;r<s;r++){let s=n[r];i[r]=t(e[s],s,r,l&&l[r])}}else i=[];return n&&(n[r]=i),i},e.renderSlot=function(e,t,n,r,i,l){let s;if(null==n&&(n={}),t4.ce||t4.parent&&nJ(t4.parent)&&t4.parent.ce){let e=null!=l&&null==n.key?k({},n,{key:l}):n,i=Object.keys(e).length>0;return"default"!==t&&(e.name=t),id(),iy(il,null,[iC("slot",e,r&&r())],i?-2:64)}let o=e[t];o&&o._c&&(o._d=!1);let a=ic.length;id();try{let i=o&&function e(t){return t.some(t=>!iv(t)||t.type!==io&&(t.type!==il||!!e(t.children)))?t:null}(o(n)),a=n.key||l||i&&i.key;s=iy(il,{key:(a&&!R(a)?a:`_${t}`)+(!i&&r?"_fb":"")},i||(r?r():[]),i&&1===e._?64:-2)}catch(e){for(let e=ic.length;e>a;e--)ih();throw e}finally{o&&o._c&&(o._d=!0)}return!i&&s.scopeId&&(s.slotScopeIds=[s.scopeId+"-s"]),s},e.resolveComponent=function(e,t){return ro(rl,e,!0,t)||e},e.resolveDirective=function(e){return ro("directives",e)},e.resolveDynamicComponent=function(e){return I(e)?ro(rl,e,!1)||e:e||rs},e.resolveFilter=null,e.resolveTransitionHooks=nk,e.setBlockTracking=ig,e.setDevtoolsHook=_,e.setTransitionHooks=nN,e.shallowReactive=tf,e.shallowReadonly=function(e){return tg(e,!0,te,to,td)},e.shallowRef=tw,e.ssrContextKey=nn,e.ssrUtils=null,e.stop=function(e){e.effect.stop()},e.toDisplayString=em,e.toHandlerKey=q,e.toHandlers=function(e,t){let n={};for(let r in e)n[t&&/[A-Z]/.test(r)?`on:${r}`:q(r)]=e[r];return n},e.toRaw=t_,e.toRef=function(e,t,n){if(tk(e))return e;if(E(e))return new tF(e);if(!O(e)||!(arguments.length>1))return tT(e);return new tP(e,t,n)},e.toRefs=function(e){let t=A(e)?Array(e.length):{};for(let n in e)t[n]=new tP(e,n,void 0);return t},e.toValue=function(e){return E(e)?e():tE(e)},e.transformVNodeArgs=function(e){},e.triggerRef=function(e){e.dep&&e.dep.trigger()},e.unref=tE,e.useAttrs=function(){return rp().attrs},e.useCssModule=function(e="$style"){return v},e.useCssVars=function(e){let t=iL();if(!t)return;let n=t.ut=(n=e(t.proxy))=>{Array.from(document.querySelectorAll(`[data-v-owner="${t.uid}"]`)).forEach(e=>lg(e,n))},r=()=>{let r=e(t.proxy);t.ce?lg(t.ce,r):function e(t,n){if(128&t.shapeFlag){let r=t.suspense;t=r.activeBranch,r.pendingBranch&&!r.isHydrating&&r.effects.push(()=>{e(r.activeBranch,n)})}for(;t.component;)t=t.component.subTree;if(1&t.shapeFlag&&t.el)lg(t.el,n);else if(t.type===il)t.children.forEach(t=>e(t,n));else if(t.type===ia){let{el:e,anchor:r}=t;for(;e&&(lg(e,n),e!==r);)e=e.nextSibling}}(t.subTree,r),n(r)};n5(()=>{t0(r)}),n8(()=>{ni(r,_,{flush:"post"});let e=new MutationObserver(r);e.observe(t.subTree.el.parentNode,{childList:!0}),re(()=>e.disconnect())})},e.useHost=lL,e.useId=function(){let e=iL();return e?(e.appContext.config.idPrefix||"v")+"-"+e.ids[0]+e.ids[1]++:""},e.useModel=function(e,t,n=v){let r=iL(),i=j(t),l=U(t),s=rE(e,i),o=tM((s,o)=>{let a,c,u=v;return nr(()=>{let t=e[i];W(a,t)&&(a=t,o())}),{get:()=>(s(),n.get?n.get(a):a),set(e){let s=n.set?n.set(e):e;if(!W(s,a)&&!(u!==v&&W(e,u)))return;let d=r.vnode.props,h=!!(d&&(t in d||i in d||l in d)&&(`onUpdate:${t}`in d||`onUpdate:${i}`in d||`onUpdate:${l}`in d));h||(a=e,o()),r.emit(`update:${t}`,s),W(e,u)&&(W(e,s)&&!W(s,c)||h&&u!==v&&!W(s,a))&&o(),u=e,c=s}}});return o[Symbol.iterator]=()=>{let e=0;return{next:()=>e<2?{value:e++?s||v:o,done:!1}:{done:!0}}},o},e.useSSRContext=()=>{},e.useShadowRoot=function(){let e=lL();return e&&e.shadowRoot},e.useSlots=function(){return rp().slots},e.useTemplateRef=function(e){let t=iL(),n=tw(null);return t&&Object.defineProperty(t.refs===v?t.refs={}:t.refs,e,{enumerable:!0,get:()=>n.value,set:e=>n.value=e}),n},e.useTransitionState=nv,e.vModelCheckbox=l0,e.vModelDynamic={created(e,t,n){l5(e,t,n,null,"created")},mounted(e,t,n){l5(e,t,n,null,"mounted")},beforeUpdate(e,t,n,r){l5(e,t,n,r,"beforeUpdate")},updated(e,t,n,r){l5(e,t,n,r,"updated")}},e.vModelRadio=l2,e.vModelSelect=l3,e.vModelText=lY,e.vShow={name:"show",beforeMount(e,{value:t},{transition:n}){e[ld]="none"===e.style.display?"":e.style.display,n&&t?n.beforeEnter(e):lf(e,t)},mounted(e,{value:t},{transition:n}){n&&t&&n.enter(e)},updated(e,{value:t,oldValue:n},{transition:r}){!t!=!n&&(r?t?(r.beforeEnter(e),lf(e,!0),r.enter(e)):r.leave(e,()=>{lf(e,!1)}):lf(e,t))},beforeUnmount(e,{value:t}){lf(e,t)}},e.version=iQ,e.warn=_,e.watch=function(e,t,n){return ni(e,t,n)},e.watchEffect=function(e,t){return ni(e,null,t)},e.watchPostEffect=function(e,t){return ni(e,null,{flush:"post"})},e.watchSyncEffect=nr,e.withAsyncContext=function(e){let t=iL(),n=ij,r=e();iD(),n&&u(!1);let i=()=>{i$(t),n&&u(!0)},l=()=>{iL()!==t&&t.scope.off(),iD(),n&&u(!1)};return M(r)&&(r=r.catch(e=>{throw i(),Promise.resolve().then(()=>Promise.resolve().then(l)),e})),[r,()=>{i(),Promise.resolve().then(l)}]},e.withCtx=t9,e.withDefaults=function(e,t){return null},e.withDirectives=function(e,t){if(null===t4)return e;let n=iK(t4),r=e.dirs||(e.dirs=[]);for(let e=0;e<t.length;e++){let[i,l,s,o=v]=t[e];i&&(E(i)&&(i={mounted:i,updated:i}),i.deep&&tj(l),r.push({dir:i,instance:n,value:l,oldValue:void 0,arg:s,modifiers:o}))}return e},e.withKeys=(e,t)=>{let n=e._withKeys||(e._withKeys={}),r=t.join(".");return n[r]||(n[r]=n=>{if(!("key"in n))return;let r=U(n.key);if(t.some(e=>e===r||se[e]===r))return e(n)})},e.withMemo=function(e,t,n,r){let i=n[r];if(i&&iX(i,e))return i;let l=t();return l.memo=e.slice(),l.cacheIndex=r,n[r]=l},e.withModifiers=(e,t)=>{if(!e)return e;let n=e._withMods||(e._withMods={}),r=t.join(".");return n[r]||(n[r]=(n,...r)=>{for(let e=0;e<t.length;e++){let r=l7[t[e]];if(r&&r(n,t))return}return e(n,...r)})},e.withScopeId=e=>t9,e}({});
 </script>
-<script>const { createApp, ref, computed, watch } = Vue;
+<script>const { createApp, ref, computed, watch, nextTick } = Vue;
 
 createApp({
     setup() {
@@ -2662,10 +2765,158 @@ createApp({
                 title: selectedBookTitle.value,
                 totalPages: info?.totalPages || agg?.totalPages || 0,
                 readers: agg?.readers || [], reflections: agg?.reflections || [],
-                info, questions: info?.questions || []
+                info, questions: info?.questions || [],
+                content: info?.content || null
             };
         });
         const openBook = (title) => { selectedBookTitle.value = title; currentPage.value = 'bookDetail'; };
+
+        // ============ 在线阅读器 ============
+        const READER_THEMES = ['white', 'paper', 'green', 'dark'];
+        const READER_THEME_NAMES = { white: '素白', paper: '羊皮纸', green: '护眼绿', dark: '夜间' };
+        const readerBook = ref(null);       // 正在阅读的书（含 id/title）
+        const readerText = ref('');         // 全文
+        const readerChapters = ref([]);     // [{title, start, end}]
+        const readerIdx = ref(0);
+        const readerFont = ref(19);
+        const readerTheme = ref('white');
+        const readerPercent = ref(0);
+        const showToc = ref(false);
+        const readerBodyEl = ref(null);
+        let progTimer = null;
+
+        const splitChapters = (text) => {
+            const re = /^[ \t]*(第[0-9零一二三四五六七八九十百千万两]+[章节卷回篇集]|序章|楔子|前言|自序|后记|尾声|终章|番外)[^\n]*$/gm;
+            const marks = [];
+            let m;
+            while ((m = re.exec(text)) !== null) marks.push({ title: m[0].trim(), start: m.index });
+            if (!marks.length) return [{ title: '全文', start: 0, end: text.length }];
+            const chapters = marks.map((mk, i) => ({ title: mk.title, start: mk.start, end: i + 1 < marks.length ? marks[i + 1].start : text.length }));
+            if (marks[0].start > 0) chapters.unshift({ title: '开篇', start: 0, end: marks[0].start });
+            return chapters;
+        };
+        const readerChapterText = computed(() => {
+            const c = readerChapters.value[readerIdx.value];
+            return c ? readerText.value.slice(c.start, c.end).replace(/^[^\n]*\n/, '').trim() : '';
+        });
+        const totalChars = computed(() => readerText.value.length || 1);
+        const myReadPercent = (title) => {
+            const me = currentUser.value;
+            const u = me ? users.value.find(x => x.username === me.username) : null;
+            return Math.round((u && u.readProgress && u.readProgress[title] || {}).percent || 0);
+        };
+        const saveReaderProgress = () => {
+            if (!readerBook.value || !currentUser.value) return;
+            const c = readerChapters.value[readerIdx.value];
+            if (!c) return;
+            const el = readerBodyEl.value;
+            const ratio = el ? Math.min(1, el.scrollTop / Math.max(1, el.scrollHeight - el.clientHeight)) : 0;
+            const cLen = Math.max(1, c.end - c.start);
+            const percent = Math.min(100, Math.round((c.start + ratio * cLen) / totalChars.value * 100));
+            readerPercent.value = percent;
+            const u = users.value.find(x => x.username === currentUser.value.username);
+            if (u) u.readProgress = { ...(u.readProgress || {}), [readerBook.value.title]: { ch: readerIdx.value, percent, updatedAt: Date.now() } };
+        };
+        const openReader = async (book) => {
+            if (!currentUser.value) { toast('请先登录后再阅读'); return; }
+            if (!SERVER_MODE.value) { toast('阅读功能需要连接服务器（离线模式不可用）'); return; }
+            if (!book || !book.id) { toast('书源信息有误'); return; }
+            const themeSaved = localStorage.getItem('reader_theme');
+            if (themeSaved && READER_THEMES.includes(themeSaved)) readerTheme.value = themeSaved;
+            const fontSaved = parseInt(localStorage.getItem('reader_font'));
+            if (fontSaved >= 14 && fontSaved <= 30) readerFont.value = fontSaved;
+            readerBook.value = book;
+            currentPage.value = 'reader';
+            readerText.value = ''; readerChapters.value = []; readerIdx.value = 0; readerPercent.value = 0;
+            try {
+                const res = await fetch('/api/book-content/' + book.id, { headers: authHeaders() });
+                const d = await res.json().catch(() => ({}));
+                if (!res.ok) { toast(d.error || '书源加载失败'); readerBook.value = null; currentPage.value = 'books'; return; }
+                readerText.value = String(d);
+                readerChapters.value = splitChapters(String(d));
+                const me = users.value.find(x => x.username === currentUser.value.username);
+                const prog = me && me.readProgress && me.readProgress[book.title];
+                if (prog && prog.ch > 0 && prog.ch < readerChapters.value.length) {
+                    readerIdx.value = prog.ch;
+                    readerPercent.value = prog.percent || 0;
+                    nextTick(() => { if (readerBodyEl.value) readerBodyEl.value.scrollTop = readerBodyEl.value.scrollHeight * Math.min(1, (prog.percent || 0) / 100); });
+                }
+            } catch { toast('书源加载失败，请检查网络'); readerBook.value = null; currentPage.value = 'books'; }
+        };
+        const closeReader = () => { saveReaderProgress(); readerBook.value = null; currentPage.value = 'books'; };
+        const goChapter = (i) => {
+            if (i < 0 || i >= readerChapters.value.length) return;
+            readerIdx.value = i;
+            nextTick(() => { if (readerBodyEl.value) readerBodyEl.value.scrollTop = 0; });
+            saveReaderProgress();
+        };
+        const cycleTheme = () => {
+            const i = READER_THEMES.indexOf(readerTheme.value);
+            readerTheme.value = READER_THEMES[(i + 1) % READER_THEMES.length];
+            localStorage.setItem('reader_theme', readerTheme.value);
+            toast('背景：' + READER_THEME_NAMES[readerTheme.value]);
+        };
+        const onReaderScroll = () => {
+            clearTimeout(progTimer);
+            progTimer = setTimeout(saveReaderProgress, 600);
+        };
+
+        // ============ 导入书籍 ============
+        const showUpload = ref(false);
+        const uploadTitle = ref('');
+        const uploadAuthor = ref('');
+        const uploading = ref(false);
+        const uploadFile = ref(null);
+        const openUpload = () => { uploadTitle.value = ''; uploadAuthor.value = ''; uploadFile.value = null; showUpload.value = true; };
+        const onUploadFile = (e) => {
+            const f = e.target.files && e.target.files[0];
+            if (!f) return;
+            if (f.size > 30e6) { toast('文件超过 30MB 上限，请先拆分'); e.target.value = ''; return; }
+            uploadFile.value = f;
+            if (!uploadTitle.value.trim()) uploadTitle.value = f.name.replace(/\.txt$/i, '');
+        };
+        const doUpload = async () => {
+            const title = uploadTitle.value.trim();
+            if (!title) { toast('请填写书名'); return; }
+            if (!uploadFile.value) { toast('请选择 TXT 文件'); return; }
+            if (!SERVER_MODE.value) { toast('上传需要连接服务器'); return; }
+            uploading.value = true;
+            try {
+                const buf = await uploadFile.value.arrayBuffer();
+                const res = await fetch('/api/upload-book?title=' + encodeURIComponent(title) + '&author=' + encodeURIComponent(uploadAuthor.value.trim()), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/octet-stream', ...authHeaders() },
+                    body: buf
+                });
+                const d = await res.json().catch(() => ({}));
+                if (res.ok && d.ok) {
+                    showUpload.value = false;
+                    toast(d.status === 'approved' ? '📚 《<b>' + title + '</b>》书源已上传并生效' : '📚 《<b>' + title + '</b>》已提交，等待掌馆人审核');
+                    syncFromServer();
+                } else toast(d.error || '上传失败');
+            } catch { toast('上传失败，请检查网络'); }
+            uploading.value = false;
+        };
+
+        // ============ 掌馆人 · 书源审核 ============
+        const pendingContents = computed(() => books.value.filter(b => b.content && b.content.status === 'pending'));
+        const approvedContents = computed(() => books.value.filter(b => b.content && b.content.status === 'approved'));
+        const reviewContent = async (title, action) => {
+            try {
+                const res = await fetch('/api/admin/review-content', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+                    body: JSON.stringify({ title, action })
+                });
+                const d = await res.json().catch(() => ({}));
+                if (res.ok && d.ok) {
+                    toast(action === 'approve' ? '✓ 《' + title + '》书源已通过，全会可读' : '已删除《' + title + '》书源');
+                    syncFromServer();
+                } else toast(d.error || '操作失败');
+            } catch { toast('操作失败，请检查网络'); }
+        };
+        const previewContent = (b) => openReader(b);
+
         const bookPosts = computed(() => {
             if (!selectedBook.value) return [];
             const t = selectedBook.value.title;
@@ -3163,6 +3414,10 @@ createApp({
             qDraft, startQuestion, saveQuestion, delQuestion,
             testBook, testAnswers, testBlanks, testEssay, testSections, testResult, startTest, submitTest, closeTest, userScore, scoreBoard, wordsOf,
             essayBook, essayEntries, openEssays,
+            readerBook, readerChapters, readerIdx, readerFont, readerTheme, readerPercent, showToc, readerBodyEl, readerChapterText,
+            openReader, closeReader, goChapter, cycleTheme, onReaderScroll, myReadPercent,
+            showUpload, uploadTitle, uploadAuthor, uploading, openUpload, onUploadFile, doUpload,
+            pendingContents, approvedContents, reviewContent, previewContent,
             activities, activeVote, activeRead, pastActivities, newVoteTitles,
             startVote, castVote, myVote, closeVote, joinReading, participantProgress, finishActivity,
             notifications, myNotifications, unreadCount, pushNotification, openNotification, markAllRead,

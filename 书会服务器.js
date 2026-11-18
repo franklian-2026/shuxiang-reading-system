@@ -148,7 +148,35 @@ const readBody = (req) => new Promise((resolve, reject) => {
     req.on('end', () => resolve(body));
     req.on('error', reject);
 });
+// 原始字节流读取（书籍文件上传用，上限 32MB）
+const readRawBody = (req, cap = 32e6) => new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', c => {
+        size += c.length;
+        if (size > cap) { req.destroy(); reject(new Error('文件过大（上限 30MB）')); return; }
+        chunks.push(c);
+    });
+    req.on('end', () => resolve(Buffer.concat(chunks)));
+    req.on('error', reject);
+});
 const clientIp = (req) => req.socket.remoteAddress || '?';
+
+// ---------- 书籍内容（在线阅读器书源） ----------
+// 正文文件存于 books_content/ 目录，元数据存于 db.bookContent（以书名为键，由服务器独占保管，
+// 客户端整包同步时不接收也不覆盖，防止旧数据把书源冲掉）
+const BOOKS_DIR = path.join(ROOT, 'books_content');
+try { fs.mkdirSync(BOOKS_DIR, { recursive: true }); } catch {}
+if (!db.bookContent || typeof db.bookContent !== 'object') db.bookContent = {};
+const sanitizeBookMeta = (m) => {
+    const { file, ...rest } = m || {};
+    return rest;
+};
+const injectContent = (books) => (books || []).map(b =>
+    db.bookContent[b.title] ? { ...b, content: sanitizeBookMeta(db.bookContent[b.title]) } : b
+);
+const stripContent = (books) => (books || []).map(({ content, ...b }) => b);
+const safeFileName = (title) => title.replace(/[\\/:*?"<>|\s]+/g, '_').slice(0, 40) || 'book';
 
 const MIME = {
     '.html': 'text/html; charset=utf-8',
@@ -274,11 +302,12 @@ http.createServer(async (req, res) => {
 
     // ================= 数据同步 API =================
     if (urlPath === '/api/data') {
-        // 读取：公开（仅用于页面展示），凭据字段已脱敏
+        // 读取：公开（仅用于页面展示），凭据字段已脱敏，书源元数据由服务器注入
         if (req.method === 'GET') {
             const safe = {
                 ...db,
-                users: (db.users || []).map(sanitizeUser)
+                users: (db.users || []).map(sanitizeUser),
+                books: injectContent(db.books)
             };
             return json(res, 200, safe);
         }
@@ -294,13 +323,86 @@ http.createServer(async (req, res) => {
                     achievements: d.achievements,
                     forum: d.forum,
                     notifications: Array.isArray(d.notifications) ? d.notifications : [],
-                    books: Array.isArray(d.books) ? d.books : [],
-                    activities: Array.isArray(d.activities) ? d.activities : []
+                    books: Array.isArray(d.books) ? stripContent(d.books) : [],
+                    activities: Array.isArray(d.activities) ? d.activities : [],
+                    bookContent: db.bookContent || {}
                 };
                 writeData(db);
                 return json(res, 200, { ok: true });
             } catch { return json(res, 400, { ok: false, error: '数据格式有误' }); }
         }
+    }
+
+    // ================= 在线阅读器 API =================
+    // 上传书籍文件（TXT）：登录会员均可上传，进入待审核；掌馆人上传直接过审
+    if (urlPath === '/api/upload-book' && req.method === 'POST') {
+        const auth = getAuth(req);
+        if (!auth) return json(res, 401, { ok: false, error: '上传书籍需要先登录' });
+        try {
+            const q = new URL(req.url, 'http://x').searchParams;
+            const title = String(q.get('title') || '').trim().slice(0, 50);
+            const author = String(q.get('author') || '').trim().slice(0, 30) || '佚名';
+            if (!title) return json(res, 400, { ok: false, error: '缺少书名' });
+            const buf = await readRawBody(req);
+            if (!buf.length) return json(res, 400, { ok: false, error: '文件内容为空' });
+            // 粗校验：应为文本（含大量 NUL 视为二进制文件）
+            let nul = 0;
+            for (let i = 0; i < Math.min(buf.length, 4096); i++) if (buf[i] === 0) nul++;
+            if (nul > 64) return json(res, 400, { ok: false, error: '仅支持 TXT 文本文件' });
+            const fileName = Date.now() + '-' + safeFileName(title) + '.txt';
+            fs.writeFileSync(path.join(BOOKS_DIR, fileName), buf);
+            let book = (db.books || []).find(b => b.title === title);
+            if (!book) {
+                book = { id: Date.now(), title, author, totalPages: 0, totalWords: 0, difficulty: 3, desc: '', questions: [] };
+                (db.books = db.books || []).push(book);
+            }
+            db.bookContent[title] = {
+                status: auth.role === 'admin' ? 'approved' : 'pending',
+                file: fileName, size: buf.length, format: 'txt',
+                uploadedBy: auth.username, uploadedAt: Date.now()
+            };
+            writeData(db);
+            console.log('书籍上传: 《' + title + '》 ' + (buf.length / 1e6).toFixed(1) + 'MB by ' + auth.username + ' (' + db.bookContent[title].status + ')');
+            return json(res, 200, { ok: true, status: db.bookContent[title].status });
+        } catch (e) { return json(res, 400, { ok: false, error: e.message || '上传失败' }); }
+    }
+
+    // 读取书籍正文：需登录；学生仅可读已过审书源，掌馆人可预览待审书源
+    if (/^\/api\/book-content\/\d+$/.test(urlPath) && req.method === 'GET') {
+        const auth = getAuth(req);
+        if (!auth) return json(res, 401, { ok: false, error: '阅读需要先登录' });
+        const id = parseInt(urlPath.split('/').pop(), 10);
+        const book = (db.books || []).find(b => b.id === id);
+        const meta = book && db.bookContent[book.title];
+        if (!book || !meta || !meta.file) return json(res, 404, { ok: false, error: '该书暂无书源' });
+        if (meta.status !== 'approved' && auth.role !== 'admin') return json(res, 403, { ok: false, error: '书源审核中，请稍候' });
+        try {
+            const text = fs.readFileSync(path.join(BOOKS_DIR, meta.file), 'utf8');
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
+            return res.end(text);
+        } catch { return json(res, 404, { ok: false, error: '书源文件丢失' }); }
+    }
+
+    // 掌馆人审核书源：通过 / 驳回 / 删除
+    if (urlPath === '/api/admin/review-content' && req.method === 'POST') {
+        const auth = getAuth(req);
+        if (!auth || auth.role !== 'admin') return json(res, 403, { ok: false, error: '需要掌馆人权限' });
+        try {
+            const b = JSON.parse(await readBody(req));
+            const title = String(b.title || '').trim();
+            const action = String(b.action || '');
+            const meta = db.bookContent[title];
+            if (!meta) return json(res, 404, { ok: false, error: '该书没有待审书源' });
+            if (action === 'approve') {
+                meta.status = 'approved';
+                console.log('书源过审: 《' + title + '》');
+            } else if (action === 'reject' || action === 'delete') {
+                try { fs.unlinkSync(path.join(BOOKS_DIR, meta.file)); } catch {}
+                delete db.bookContent[title];
+            } else return json(res, 400, { ok: false, error: '未知操作' });
+            writeData(db);
+            return json(res, 200, { ok: true });
+        } catch { return json(res, 400, { ok: false, error: '请求格式有误' }); }
     }
 
     // ================= 静态文件 =================
