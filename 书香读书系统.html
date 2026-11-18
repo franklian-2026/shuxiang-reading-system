@@ -1361,10 +1361,14 @@ body::before { opacity: .38; }
             <button class="btn plain sm" @click="goToPage('home')">← 返回</button>
         </div>
         <!-- 搜索 -->
-        <div class="card frame" style="max-width:980px; margin:0 auto 22px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
+        <div class="card frame" style="max-width:980px; margin:0 auto 14px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
             <span style="font-size:19px; color:var(--ink-3);">🔍</span>
             <input v-model="bookSearch" placeholder="搜书目：书名、作者或简介…" style="flex:1; border:none; outline:none; background:transparent; font-size:16px; font-family:inherit; color:var(--ink);">
             <button class="btn plain sm" v-if="bookSearch" @click="bookSearch=''">✕ 清空</button>
+        </div>
+        <!-- 分类筛选 -->
+        <div style="max-width:980px; margin:0 auto 20px; display:flex; gap:8px; flex-wrap:wrap;">
+            <span v-for="c in bookCats" :key="c" class="nav-tag" :class="{plain: bookCat!==c}" @click="bookCat = c" style="cursor:pointer; font-size:14px; padding:4px 14px;">{{ c }}</span>
         </div>
         <div class="shelf-grid">
             <div class="card frame hoverable shelf-book" v-for="b in searchedBooks" :key="b.title" @click="openBook(b.title)" style="cursor:pointer;">
@@ -1373,6 +1377,11 @@ body::before { opacity: .38; }
                     <h3 class="wall-book">《{{ b.title }}》</h3>
                     <div class="book-sub">👥 {{ b.readers.length }} 人在读 · ✍ {{ b.reflections.length }} 篇心得</div>
                     <div class="book-sub" v-if="b.totalPages">全书 {{ b.totalPages }} 页</div>
+                    <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;" v-if="bookInfo(b.title)?.category || bookInfo(b.title)?.series || bookInfo(b.title)?.volNote">
+                        <span class="nav-tag plain" style="font-size:13px;">{{ bookInfo(b.title)?.category || '其他' }}</span>
+                        <span class="nav-tag" style="font-size:13px;" v-if="bookInfo(b.title)?.volNote">{{ bookInfo(b.title)?.volNote }}</span>
+                        <span class="nav-tag" style="font-size:13px; color:#46748f; border-color:#46748f;" v-if="bookInfo(b.title)?.series">📚 {{ bookInfo(b.title)?.series }}</span>
+                    </div>
                     <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap;">
                         <span class="nav-tag" v-if="b.content && b.content.status === 'approved'" style="color:var(--cinnabar); border-color:var(--cinnabar); cursor:pointer;" @click.stop="openReader(b)">📖 在线阅读</span>
                         <span class="nav-tag plain" v-else-if="b.content && b.content.status === 'pending'">⏳ 书源审核中</span>
@@ -1382,7 +1391,7 @@ body::before { opacity: .38; }
             </div>
         </div>
         <div v-if="!searchedBooks.length" class="card frame" style="padding:44px; text-align:center; color:var(--ink-3); font-size:17px; letter-spacing:3px;">
-            {{ bookSearch ? '在读书目中未寻得 · 典藏区或许有' : '书库尚空 · 第一次签到后书目自动收录' }}
+            {{ (bookSearch || bookCat !== '全部') ? '未寻得相关书目 · 换个分类或关键词试试' : '书库尚空 · 第一次签到后书目自动收录' }}
         </div>
 
         <div class="form-title" style="max-width:980px; margin:32px auto 14px;" v-if="searchedUnread.length">{{ bookSearch ? '🔎 搜索结果 · 库中典藏' : '🀄 库中典藏 · 尚未开读' }}</div>
@@ -1393,6 +1402,11 @@ body::before { opacity: .38; }
                     <h3 class="wall-book">《{{ b.title }}》</h3>
                     <div class="book-sub">{{ b.author }} · 约 {{ b.totalWords }} 万字 · {{ ['☆','★','★★','★★★','★★★★','★★★★★'][b.difficulty] || '★★★' }}</div>
                     <div class="book-sub" v-if="b.questions.length">🧠 思维测评 {{ b.questions.length }} 题</div>
+                    <div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;">
+                        <span class="nav-tag plain" style="font-size:13px;">{{ b.category || '其他' }}</span>
+                        <span class="nav-tag" style="font-size:13px;" v-if="b.volNote">{{ b.volNote }}</span>
+                        <span class="nav-tag" style="font-size:13px; color:#46748f; border-color:#46748f;" v-if="b.series">📚 {{ b.series }}</span>
+                    </div>
                     <div class="nav-tag" style="margin-top:12px;">查看详情 →</div>
                 </div>
             </div>
@@ -3035,19 +3049,34 @@ createApp({
         const catalogUnread = computed(() => books.value.filter(b => !allBooks.value.some(a => a.title === b.title)));
         // ---- 书库搜索：书名 / 作者 / 简介，忽略大小写与空白 ----
         const bookSearch = ref('');
+        // ---- 分类筛选 ----
+        const bookCat = ref('全部');
+        const bookCats = computed(() => {
+            const set = new Set();
+            books.value.forEach(b => set.add(b.category || '其他'));
+            return ['全部', ...[...set].sort((a, b) => a.localeCompare(b, 'zh'))];
+        });
+        const matchCat = (cat) => bookCat.value === '全部' || cat === bookCat.value;
         const normQ = (s) => String(s || '').toLowerCase().replace(/\s+/g, '');
         const searchedBooks = computed(() => {
             const q = normQ(bookSearch.value);
-            if (!q) return allBooks.value;
             return allBooks.value.filter(b => {
                 const info = bookInfo(b.title);
+                if (!matchCat(info?.category || '其他')) return false;
+                if (!q) return true;
                 return normQ(b.title).includes(q) || normQ(info?.author).includes(q) || normQ(info?.desc).includes(q);
             });
         });
         const searchedUnread = computed(() => {
             const q = normQ(bookSearch.value);
-            if (!q) return catalogUnread.value;
-            return catalogUnread.value.filter(b => normQ(b.title).includes(q) || normQ(b.author).includes(q) || normQ(b.desc).includes(q));
+            return catalogUnread.value
+                .filter(b => {
+                    if (!matchCat(b.category || '其他')) return false;
+                    if (!q) return true;
+                    return normQ(b.title).includes(q) || normQ(b.author).includes(q) || normQ(b.desc).includes(q);
+                })
+                // 同系列相邻排列（教父三部曲等），无系列按书名排
+                .sort((a, b) => (a.series || '￣' + a.title).localeCompare(b.series || '￣' + b.title, 'zh'));
         });
         const newBook = ref({ title: '', author: '', totalPages: 300, totalWords: 20, difficulty: 3, desc: '' });
         const addBook = () => {
@@ -3449,7 +3478,7 @@ createApp({
             toasts, SERVER_MODE, forum, sortedForum, searchedForum, forumSearch, newPostTitle, newPostContent, replyText, openReply,
             submitPost, toggleReply, addReply, toggleLike, canModerate, deletePost, deleteReply,
             TITLES, getTitle, nextTitle, tierStyle, uTotal, tokenSvg, tokenName,
-            books, bookInfo, catalogUnread, searchedBooks, searchedUnread, bookSearch, newBook, addBook, removeBook,
+            books, bookInfo, catalogUnread, searchedBooks, searchedUnread, bookSearch, bookCat, bookCats, newBook, addBook, removeBook,
             qDraft, startQuestion, saveQuestion, delQuestion,
             testBook, testAnswers, testBlanks, testEssay, testSections, testResult, startTest, submitTest, closeTest, userScore, scoreBoard, wordsOf,
             essayBook, essayEntries, openEssays,
