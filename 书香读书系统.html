@@ -1236,6 +1236,13 @@ body::before { opacity: .38; }
         <div class="notice ok" v-if="SERVER_MODE" style="max-width:900px; margin:0 auto 18px;">📡 全会同步已开启 · 各设备账户与帖子实时共享</div>
         <div class="notice err" v-else style="max-width:900px; margin:0 auto 18px;">⚠ 当前为离线模式 · 数据仅存本机。请双击「启动服务器.bat」并通过局域网地址访问以启用同步</div>
 
+        <!-- 搜索 -->
+        <div class="card frame" style="max-width:900px; margin:0 auto 22px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
+            <span style="font-size:19px; color:var(--ink-3);">🔍</span>
+            <input v-model="forumSearch" placeholder="搜帖子：标题、正文、回帖或楼主姓名…" style="flex:1; border:none; outline:none; background:transparent; font-size:16px; font-family:inherit; color:var(--ink);">
+            <button class="btn plain sm" v-if="forumSearch" @click="forumSearch=''">✕ 清空</button>
+        </div>
+
         <!-- 发帖 -->
         <div class="card frame" style="max-width:900px; margin:0 auto 22px; padding:26px 30px;" v-if="currentUser">
             <div class="fg"><label>主题标题</label><input v-model="newPostTitle" placeholder="例：读完《三体》，来聊聊黑暗森林法则"></div>
@@ -1248,7 +1255,7 @@ body::before { opacity: .38; }
 
         <!-- 帖子列表 -->
         <div style="max-width:900px; margin:0 auto;">
-            <div class="card frame forum-post" v-for="p in sortedForum" :key="p.id">
+            <div class="card frame forum-post" v-for="p in searchedForum" :key="p.id">
                 <div class="f-head">
                     <div class="f-avatar brush" style="cursor:pointer;" @click="openProfile(p.author)" :title="'查看 ' + p.authorName + ' 的主页'">{{ p.authorName.slice(0, 1) }}</div>
                     <div style="flex:1; min-width:0;">
@@ -1283,8 +1290,8 @@ body::before { opacity: .38; }
                     <button class="btn sm" @click="addReply(p)">回帖</button>
                 </div>
             </div>
-            <div v-if="!sortedForum.length" class="card frame" style="padding:48px; text-align:center; color:var(--ink-3); font-size:17px; letter-spacing:3px;">
-                坛中尚无帖子 · 静候开坛第一声
+            <div v-if="!searchedForum.length" class="card frame" style="padding:48px; text-align:center; color:var(--ink-3); font-size:17px; letter-spacing:3px;">
+                {{ forumSearch ? '未寻得相关帖子 · 换个关键词试试' : '坛中尚无帖子 · 静候开坛第一声' }}
             </div>
         </div>
     </div>
@@ -1353,8 +1360,14 @@ body::before { opacity: .38; }
             <button class="btn plain sm" v-if="currentUser && SERVER_MODE" @click="openUpload">📚 导入书籍</button>
             <button class="btn plain sm" @click="goToPage('home')">← 返回</button>
         </div>
+        <!-- 搜索 -->
+        <div class="card frame" style="max-width:980px; margin:0 auto 22px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
+            <span style="font-size:19px; color:var(--ink-3);">🔍</span>
+            <input v-model="bookSearch" placeholder="搜书目：书名、作者或简介…" style="flex:1; border:none; outline:none; background:transparent; font-size:16px; font-family:inherit; color:var(--ink);">
+            <button class="btn plain sm" v-if="bookSearch" @click="bookSearch=''">✕ 清空</button>
+        </div>
         <div class="shelf-grid">
-            <div class="card frame hoverable shelf-book" v-for="b in allBooks" :key="b.title" @click="openBook(b.title)" style="cursor:pointer;">
+            <div class="card frame hoverable shelf-book" v-for="b in searchedBooks" :key="b.title" @click="openBook(b.title)" style="cursor:pointer;">
                 <div class="book-spine brush">{{ b.title.slice(0, 4) }}</div>
                 <div class="book-body">
                     <h3 class="wall-book">《{{ b.title }}》</h3>
@@ -1368,13 +1381,13 @@ body::before { opacity: .38; }
                 </div>
             </div>
         </div>
-        <div v-if="!allBooks.length" class="card frame" style="padding:44px; text-align:center; color:var(--ink-3); font-size:17px; letter-spacing:3px;">
-            书库尚空 · 第一次签到后书目自动收录
+        <div v-if="!searchedBooks.length" class="card frame" style="padding:44px; text-align:center; color:var(--ink-3); font-size:17px; letter-spacing:3px;">
+            {{ bookSearch ? '在读书目中未寻得 · 典藏区或许有' : '书库尚空 · 第一次签到后书目自动收录' }}
         </div>
 
-        <div class="form-title" style="max-width:980px; margin:32px auto 14px;" v-if="catalogUnread.length">🀄 库中典藏 · 尚未开读</div>
-        <div class="shelf-grid" v-if="catalogUnread.length">
-            <div class="card frame hoverable shelf-book" v-for="b in catalogUnread" :key="b.id" @click="openBook(b.title)" style="cursor:pointer;">
+        <div class="form-title" style="max-width:980px; margin:32px auto 14px;" v-if="searchedUnread.length">{{ bookSearch ? '🔎 搜索结果 · 库中典藏' : '🀄 库中典藏 · 尚未开读' }}</div>
+        <div class="shelf-grid" v-if="searchedUnread.length">
+            <div class="card frame hoverable shelf-book" v-for="b in searchedUnread" :key="b.id" @click="openBook(b.title)" style="cursor:pointer;">
                 <div class="book-spine brush">{{ b.title.slice(0, 4) }}</div>
                 <div class="book-body">
                     <h3 class="wall-book">《{{ b.title }}》</h3>
@@ -3020,6 +3033,22 @@ createApp({
         // ============ 书籍数据库 ============
         const bookInfo = (title) => books.value.find(b => b.title === title) || null;
         const catalogUnread = computed(() => books.value.filter(b => !allBooks.value.some(a => a.title === b.title)));
+        // ---- 书库搜索：书名 / 作者 / 简介，忽略大小写与空白 ----
+        const bookSearch = ref('');
+        const normQ = (s) => String(s || '').toLowerCase().replace(/\s+/g, '');
+        const searchedBooks = computed(() => {
+            const q = normQ(bookSearch.value);
+            if (!q) return allBooks.value;
+            return allBooks.value.filter(b => {
+                const info = bookInfo(b.title);
+                return normQ(b.title).includes(q) || normQ(info?.author).includes(q) || normQ(info?.desc).includes(q);
+            });
+        });
+        const searchedUnread = computed(() => {
+            const q = normQ(bookSearch.value);
+            if (!q) return catalogUnread.value;
+            return catalogUnread.value.filter(b => normQ(b.title).includes(q) || normQ(b.author).includes(q) || normQ(b.desc).includes(q));
+        });
         const newBook = ref({ title: '', author: '', totalPages: 300, totalWords: 20, difficulty: 3, desc: '' });
         const addBook = () => {
             const n = newBook.value;
@@ -3180,6 +3209,16 @@ createApp({
             return dateStr() + ' ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
         };
         const sortedForum = computed(() => [...forum.value].sort((a, b) => b.id - a.id));
+        // ---- 论坛搜索：标题 / 正文 / 楼主 / 回帖 ----
+        const forumSearch = ref('');
+        const searchedForum = computed(() => {
+            const q = normQ(forumSearch.value);
+            if (!q) return sortedForum.value;
+            return sortedForum.value.filter(p =>
+                normQ(p.title).includes(q) || normQ(p.content).includes(q) || normQ(p.authorName).includes(q) ||
+                (p.replies || []).some(r => normQ(r.content).includes(q) || normQ(r.authorName).includes(q))
+            );
+        });
         const submitPost = () => {
             if (!currentUser.value) { toast('请先登录再发帖'); return; }
             if (!newPostTitle.value.trim() || !newPostContent.value.trim()) { toast('标题和内容都不可为空'); return; }
@@ -3407,10 +3446,10 @@ createApp({
             achievementsList, leaderboardData, allUsers, earnedAchievements,
             myStats, calTitle, calendarCells, signedThisMonth, signedToday, myLibrary,
             wallPosts, pendingRecords, selectedUserAchievements, availableAchievements,
-            toasts, SERVER_MODE, forum, sortedForum, newPostTitle, newPostContent, replyText, openReply,
+            toasts, SERVER_MODE, forum, sortedForum, searchedForum, forumSearch, newPostTitle, newPostContent, replyText, openReply,
             submitPost, toggleReply, addReply, toggleLike, canModerate, deletePost, deleteReply,
             TITLES, getTitle, nextTitle, tierStyle, uTotal, tokenSvg, tokenName,
-            books, bookInfo, catalogUnread, newBook, addBook, removeBook,
+            books, bookInfo, catalogUnread, searchedBooks, searchedUnread, bookSearch, newBook, addBook, removeBook,
             qDraft, startQuestion, saveQuestion, delQuestion,
             testBook, testAnswers, testBlanks, testEssay, testSections, testResult, startTest, submitTest, closeTest, userScore, scoreBoard, wordsOf,
             essayBook, essayEntries, openEssays,
