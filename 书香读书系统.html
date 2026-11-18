@@ -1488,7 +1488,7 @@ body::before { opacity: .38; }
         <div class="card frame dlg">
             <h2>📚 导入书籍</h2>
             <div class="upload-tip" style="margin-bottom:16px;">
-                选择 TXT 文本文件上传（30MB 以内），上传后需掌馆人审核通过，全会同学即可在线阅读。<br>
+                选择 TXT 文本文件上传（200MB 以内），上传后需掌馆人审核通过，全会同学即可在线阅读。<br>
                 ⚠ 只上传你有权分享的书（自己整理的文本、公版书），尊重作者版权。
             </div>
             <div class="fg"><label>书名</label><input v-model="uploadTitle" placeholder="例：三体"></div>
@@ -2871,7 +2871,7 @@ createApp({
         const onUploadFile = (e) => {
             const f = e.target.files && e.target.files[0];
             if (!f) return;
-            if (f.size > 30e6) { toast('文件超过 30MB 上限，请先拆分'); e.target.value = ''; return; }
+            if (f.size > 200e6) { toast('文件超过 200MB 上限，请先拆分'); e.target.value = ''; return; }
             uploadFile.value = f;
             if (!uploadTitle.value.trim()) uploadTitle.value = f.name.replace(/\.txt$/i, '');
         };
@@ -2882,11 +2882,11 @@ createApp({
             if (!SERVER_MODE.value) { toast('上传需要连接服务器'); return; }
             uploading.value = true;
             try {
-                const buf = await uploadFile.value.arrayBuffer();
+                // 直接以文件对象作为请求体（浏览器流式发送，避免整读进内存）
                 const res = await fetch('/api/upload-book?title=' + encodeURIComponent(title) + '&author=' + encodeURIComponent(uploadAuthor.value.trim()), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/octet-stream', ...authHeaders() },
-                    body: buf
+                    body: uploadFile.value
                 });
                 const d = await res.json().catch(() => ({}));
                 if (res.ok && d.ok) {

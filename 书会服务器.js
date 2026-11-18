@@ -148,13 +148,14 @@ const readBody = (req) => new Promise((resolve, reject) => {
     req.on('end', () => resolve(body));
     req.on('error', reject);
 });
-// 原始字节流读取（书籍文件上传用，上限 32MB）
-const readRawBody = (req, cap = 32e6) => new Promise((resolve, reject) => {
+// 原始字节流读取（书籍文件上传用，上限 200MB）
+const BOOK_MAX = 210e6;
+const readRawBody = (req, cap = BOOK_MAX) => new Promise((resolve, reject) => {
     const chunks = [];
     let size = 0;
     req.on('data', c => {
         size += c.length;
-        if (size > cap) { req.destroy(); reject(new Error('文件过大（上限 30MB）')); return; }
+        if (size > cap) { req.destroy(); reject(new Error('文件过大（上限 200MB）')); return; }
         chunks.push(c);
     });
     req.on('end', () => resolve(Buffer.concat(chunks)));
@@ -377,9 +378,11 @@ http.createServer(async (req, res) => {
         if (!book || !meta || !meta.file) return json(res, 404, { ok: false, error: '该书暂无书源' });
         if (meta.status !== 'approved' && auth.role !== 'admin') return json(res, 403, { ok: false, error: '书源审核中，请稍候' });
         try {
-            const text = fs.readFileSync(path.join(BOOKS_DIR, meta.file), 'utf8');
-            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' });
-            return res.end(text);
+            // 流式下发正文，避免大文件整读进内存
+            const fp = path.join(BOOKS_DIR, meta.file);
+            const stat = fs.statSync(fp);
+            res.writeHead(200, { 'Content-Type': 'text/plain; charset=utf-8', 'Content-Length': stat.size, 'Cache-Control': 'no-store' });
+            return fs.createReadStream(fp).pipe(res);
         } catch { return json(res, 404, { ok: false, error: '书源文件丢失' }); }
     }
 
