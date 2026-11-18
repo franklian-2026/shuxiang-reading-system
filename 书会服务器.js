@@ -53,13 +53,34 @@ let migrated = 0;
 });
 if (migrated) { writeData(db); console.log('已迁移 ' + migrated + ' 个账户的明文密码为加密哈希'); }
 
-// ---------- 会话密钥（持久化，重启不掉线） ----------
+// ---------- 会话密钥（多密钥兼容，跨实例一致） ----------
+// 根因：发布环境多进程实例并存且代际不一——旧实例用密钥文件的密钥，新实例用派生密钥，
+// 登录与验证随机落在不同实例上就会「刚登录就过期」。
+// 方案：签名固定用「密钥文件」值（会话密钥.key 随包分发，新旧实例都认它）；
+//       验证时依次尝试 [签名密钥, 派生密钥]，任一匹配即通过。
+// 副作用（预期行为）：更换密钥文件或修改掌馆人密码会使旧令牌逐步失效。
+const DERIVED_SECRET = (() => {
+    const adminSeed = (db.users || []).find(u => u.username === 'admin' && u.passHash && u.salt);
+    return adminSeed
+        ? crypto.createHmac('sha256', '书香读书系统-会话密钥种子').update(adminSeed.passHash + '.' + adminSeed.salt).digest()
+        : null;
+})();
+let FILE_SECRET = null;
+try { FILE_SECRET = fs.readFileSync(path.join(ROOT, '会话密钥.key')); } catch {}
+try { FILE_SECRET = FILE_SECRET || fs.readFileSync(SECRET_FILE); } catch {}
 let SECRET;
-try { SECRET = fs.readFileSync(SECRET_FILE); } catch { SECRET = null; }
-if (!SECRET || SECRET.length < 32) {
+if (FILE_SECRET && FILE_SECRET.length >= 32) {
+    SECRET = FILE_SECRET;
+    console.log('会话密钥：使用密钥文件（跨实例一致）');
+} else if (DERIVED_SECRET) {
+    SECRET = DERIVED_SECRET;
+    console.log('会话密钥：从掌馆人凭据派生（未找到密钥文件）');
+} else {
     SECRET = crypto.randomBytes(48);
-    fs.writeFileSync(SECRET_FILE, SECRET);
+    try { fs.writeFileSync(SECRET_FILE, SECRET); } catch {}
+    console.log('会话密钥：随机生成（无密钥文件且无掌馆人凭据）');
 }
+const VERIFY_SECRETS = [...new Set([SECRET, DERIVED_SECRET].filter(Boolean))];
 
 // ---------- 令牌：payload.hmac（无状态，重启后仍有效） ----------
 const b64url = (s) => Buffer.from(s).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -73,9 +94,14 @@ const verifyToken = (token) => {
     const i = token.lastIndexOf('.');
     if (i <= 0) return null;
     const payload = token.slice(0, i), sig = token.slice(i + 1);
-    const expect = crypto.createHmac('sha256', SECRET).update(payload).digest('base64url');
-    const a = Buffer.from(sig), b = Buffer.from(expect);
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    // 多密钥验证：任一密钥匹配即通过（兼容多代实例签发的令牌）
+    let matched = null;
+    for (const sk of VERIFY_SECRETS) {
+        const expect = crypto.createHmac('sha256', sk).update(payload).digest('base64url');
+        const a = Buffer.from(sig), b = Buffer.from(expect);
+        if (a.length === b.length && crypto.timingSafeEqual(a, b)) { matched = sk; break; }
+    }
+    if (!matched) return null;
     let d;
     try { d = JSON.parse(Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8')); }
     catch { return null; }
@@ -85,8 +111,22 @@ const verifyToken = (token) => {
     return { username: d.u, role: user.role || 'member', user };
 };
 const getAuth = (req) => {
+    // 三通道鉴权：标准 Authorization 头 / X-Token 头 / URL 参数 token
+    // 依次尝试所有通道，任一验签通过即可（某通道值损坏不应否定其余通道）
+    const cands = [];
     const m = String(req.headers['authorization'] || '').match(/^Bearer (.+)$/);
-    return m ? verifyToken(m[1]) : null;
+    if (m) cands.push(m[1]);
+    const xt = String(req.headers['x-token'] || '').trim();
+    if (xt) cands.push(xt);
+    try {
+        const q = new URL(req.url, 'http://local').searchParams.get('token');
+        if (q) cands.push(q);
+    } catch {}
+    for (const t of cands) {
+        const a = verifyToken(t);
+        if (a) return a;
+    }
+    return null;
 };
 
 // ---------- 密码工具 ----------
@@ -195,7 +235,7 @@ http.createServer(async (req, res) => {
 
     // ================= 认证 API =================
     // 注册：服务端创建账户并哈希密码，直接返回令牌
-    if (urlPath === '/api/register' && req.method === 'POST') {
+    if (urlPath === '/api/register' && (req.method === 'POST' || req.method === 'PUT')) {
         try {
             const b = JSON.parse(await readBody(req));
             const un = String(b.username || '').trim();
@@ -234,7 +274,7 @@ http.createServer(async (req, res) => {
     }
 
     // 登录：校验哈希，签发令牌
-    if (urlPath === '/api/login' && req.method === 'POST') {
+    if (urlPath === '/api/login' && (req.method === 'POST' || req.method === 'PUT')) {
         const ip = clientIp(req);
         if (tooManyFails(ip)) return json(res, 429, { ok: false, error: '尝试次数过多，请 5 分钟后再试' });
         try {
@@ -256,7 +296,7 @@ http.createServer(async (req, res) => {
     }
 
     // 修改密码：需登录，验证旧密码
-    if (urlPath === '/api/password' && req.method === 'POST') {
+    if (urlPath === '/api/password' && (req.method === 'POST' || req.method === 'PUT')) {
         const auth = getAuth(req);
         if (!auth) return json(res, 401, { ok: false, error: '请先登录' });
         try {
@@ -270,7 +310,7 @@ http.createServer(async (req, res) => {
     }
 
     // 管理后台解锁：校验掌馆人（admin）密码，返回管理员令牌
-    if (urlPath === '/api/admin/unlock' && req.method === 'POST') {
+    if (urlPath === '/api/admin/unlock' && (req.method === 'POST' || req.method === 'PUT')) {
         const ip = clientIp(req);
         if (tooManyFails(ip)) return json(res, 429, { ok: false, error: '尝试次数过多，请 5 分钟后再试' });
         try {
@@ -285,7 +325,7 @@ http.createServer(async (req, res) => {
     }
 
     // 管理员重置会员密码
-    if (urlPath === '/api/admin/reset-password' && req.method === 'POST') {
+    if (urlPath === '/api/admin/reset-password' && (req.method === 'POST' || req.method === 'PUT')) {
         const auth = getAuth(req);
         if (!auth || auth.role !== 'admin') return json(res, 403, { ok: false, error: '需要掌馆人权限' });
         try {
@@ -313,7 +353,7 @@ http.createServer(async (req, res) => {
             return json(res, 200, safe);
         }
         // 写入：必须携带有效令牌（任何已登录会员均可同步）
-        if (req.method === 'POST') {
+        if (req.method === 'POST' || req.method === 'PUT') {
             const auth = getAuth(req);
             if (!auth) return json(res, 401, { ok: false, error: '写入数据需要登录' });
             try {
@@ -336,7 +376,7 @@ http.createServer(async (req, res) => {
 
     // ================= 在线阅读器 API =================
     // 上传书籍文件（TXT）：登录会员均可上传，进入待审核；掌馆人上传直接过审
-    if (urlPath === '/api/upload-book' && req.method === 'POST') {
+    if (urlPath === '/api/upload-book' && (req.method === 'POST' || req.method === 'PUT')) {
         const auth = getAuth(req);
         if (!auth) return json(res, 401, { ok: false, error: '上传书籍需要先登录' });
         try {
@@ -387,7 +427,7 @@ http.createServer(async (req, res) => {
     }
 
     // 掌馆人审核书源：通过 / 驳回 / 删除
-    if (urlPath === '/api/admin/review-content' && req.method === 'POST') {
+    if (urlPath === '/api/admin/review-content' && (req.method === 'POST' || req.method === 'PUT')) {
         const auth = getAuth(req);
         if (!auth || auth.role !== 'admin') return json(res, 403, { ok: false, error: '需要掌馆人权限' });
         try {
@@ -409,6 +449,11 @@ http.createServer(async (req, res) => {
     }
 
     // ================= 静态文件 =================
+    // 守卫：密钥、数据、备份、书源正文等服务器私有文件一律不对外提供
+    if (/(密钥|书会数据|books_content|数据备份|\.tmp)/.test(urlPath)) {
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+        return res.end('404 Not Found');
+    }
     let p = urlPath === '/' ? '/书香读书系统.html' : urlPath.replace(/\.\./g, '');
     fs.readFile(path.join(ROOT, p), (e, d) => {
         if (e) {

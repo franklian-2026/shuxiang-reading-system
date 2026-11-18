@@ -2017,6 +2017,23 @@ createApp({
         const SESSION_KEY = 'reading_club_session';
         const TOKEN_KEY = 'reading_club_token';
         const ADMIN_TOKEN_KEY = 'reading_club_admin_token';
+        // 发布平台代理会损坏 Authorization/X-Token 头的内容 → 令牌统一附加到 URL 参数
+        // （服务器三通道鉴权：Authorization 头 / X-Token 头 / URL 参数 token，三通道等效）
+        // 必须在任何 fetch 发生前安装（loadData 在下方立即调用）
+        const _origFetch = window.fetch.bind(window);
+        window.fetch = (input, init) => {
+            try {
+                const url = typeof input === 'string' ? input : (input && input.url) || '';
+                if (url && url.includes('api/') && !url.includes('token=')) {
+                    const t = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(ADMIN_TOKEN_KEY);
+                    if (t) {
+                        const sep = url.includes('?') ? '&' : '?';
+                        input = url + sep + 'token=' + encodeURIComponent(t);
+                    }
+                }
+            } catch {}
+            return _origFetch(input, init);
+        };
         const FORUM_KEY = 'reading_club_forum';
         const NOTIF_KEY = 'reading_club_notifications';
         const BOOKS_KEY = 'reading_club_books';
@@ -2095,7 +2112,8 @@ createApp({
         // ---- 认证辅助 ----
         const authHeaders = () => {
             const t = localStorage.getItem(TOKEN_KEY) || localStorage.getItem(ADMIN_TOKEN_KEY);
-            return t ? { 'Authorization': 'Bearer ' + t } : {};
+            // 同时携带标准头与 X-Token：部分代理会剥离 Authorization，X-Token 可穿透
+            return t ? { 'Authorization': 'Bearer ' + t, 'X-Token': t } : {};
         };
         const handleAuthExpired = () => {
             localStorage.removeItem(TOKEN_KEY);
@@ -2117,8 +2135,11 @@ createApp({
         let lastLocalEdit = 0;
         const saveRemote = async () => {
             try {
-                const res = await fetch('/api/data', {
-                    method: 'POST',
+                // 未登录（无令牌）时不同步、不报「过期」——访客打开页面触发同步属正常现象
+                const haveTok = !!(localStorage.getItem(TOKEN_KEY) || localStorage.getItem(ADMIN_TOKEN_KEY));
+                if (!haveTok) return;
+                const res = await fetch('api/data', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json', ...authHeaders() },
                     body: JSON.stringify({ users: users.value, achievements: achievementsList.value, forum: forum.value, notifications: notifications.value, books: books.value, activities: activities.value })
                 });
@@ -2161,7 +2182,7 @@ createApp({
         // ---- 连接服务器: 拉取共享数据, 无数据时以本机数据初始化 ----
         const syncFromServer = async () => {
             try {
-                const res = await fetch('/api/data', { cache: 'no-store' });
+                const res = await fetch('api/data', { cache: 'no-store' });
                 const d = await res.json();
                 SERVER_MODE.value = true;
                 if (d.users && d.users.length) {
@@ -2187,7 +2208,7 @@ createApp({
             if (!token && !sess) return;
             if (token) {
                 try {
-                    const res = await fetch('/api/me', { headers: { 'Authorization': 'Bearer ' + token }, cache: 'no-store' });
+                    const res = await fetch('api/me', { headers: { 'Authorization': 'Bearer ' + token, 'X-Token': token }, cache: 'no-store' });
                     if (res.ok) {
                         const d = await res.json();
                         if (d.ok && d.user) { currentUser.value = d.user; return; }
@@ -2208,7 +2229,7 @@ createApp({
             if (!['forum', 'leaderboard', 'home', 'activity', 'books'].includes(currentPage.value)) return;
             if (Date.now() - lastLocalEdit < 4000) return;   // 本地刚有改动, 保护窗口内不覆盖
             try {
-                const res = await fetch('/api/data', { cache: 'no-store' });
+                const res = await fetch('api/data', { cache: 'no-store' });
                 const d = await res.json();
                 if (d.users) {
                     users.value = d.users;
@@ -2335,8 +2356,8 @@ createApp({
                 return;
             }
             try {
-                const res = await fetch('/api/login', {
-                    method: 'POST',
+                const res = await fetch('api/login', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: name, password: loginPassword.value })
                 });
@@ -2357,8 +2378,8 @@ createApp({
                 regError.value = '请填写所有必填项'; return;
             }
             try {
-                const res = await fetch('/api/register', {
-                    method: 'POST',
+                const res = await fetch('api/register', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         username: regUsername.value.trim(), password: regPassword.value, name: regName.value.trim(),
@@ -2856,7 +2877,7 @@ createApp({
             currentPage.value = 'reader';
             readerText.value = ''; readerChapters.value = []; readerIdx.value = 0; readerPercent.value = 0;
             try {
-                const res = await fetch('/api/book-content/' + book.id, { headers: authHeaders() });
+                const res = await fetch('api/book-content/' + book.id, { headers: authHeaders() });
                 const d = await res.json().catch(() => ({}));
                 if (!res.ok) { toast(d.error || '书源加载失败'); readerBook.value = null; currentPage.value = 'books'; return; }
                 readerText.value = String(d);
@@ -2910,8 +2931,8 @@ createApp({
             uploading.value = true;
             try {
                 // 直接以文件对象作为请求体（浏览器流式发送，避免整读进内存）
-                const res = await fetch('/api/upload-book?title=' + encodeURIComponent(title) + '&author=' + encodeURIComponent(uploadAuthor.value.trim()), {
-                    method: 'POST',
+                const res = await fetch('api/upload-book?title=' + encodeURIComponent(title) + '&author=' + encodeURIComponent(uploadAuthor.value.trim()), {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/octet-stream', ...authHeaders() },
                     body: uploadFile.value
                 });
@@ -2930,8 +2951,8 @@ createApp({
         const approvedContents = computed(() => books.value.filter(b => b.content && b.content.status === 'approved'));
         const reviewContent = async (title, action) => {
             try {
-                const res = await fetch('/api/admin/review-content', {
-                    method: 'POST',
+                const res = await fetch('api/admin/review-content', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json', ...authHeaders() },
                     body: JSON.stringify({ title, action })
                 });
@@ -3314,8 +3335,8 @@ createApp({
                 return;
             }
             try {
-                const res = await fetch('/api/admin/unlock', {
-                    method: 'POST',
+                const res = await fetch('api/admin/unlock', {
+                    method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ password: adminPassword.value })
                 });
@@ -3407,9 +3428,9 @@ createApp({
             const token = localStorage.getItem(ADMIN_TOKEN_KEY) || localStorage.getItem(TOKEN_KEY);
             if (!token) { toast('请先在管理页解锁'); return; }
             try {
-                const res = await fetch('/api/admin/reset-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                const res = await fetch('api/admin/reset-password', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token, 'X-Token': token },
                     body: JSON.stringify({ username })
                 });
                 const d = await res.json().catch(() => ({}));
