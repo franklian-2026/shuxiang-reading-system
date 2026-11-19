@@ -834,6 +834,276 @@ body::before { opacity: .38; }
     }
 }
 </style>
+<style>
+/* ============================================================
+   视觉精装修层 v3 · 墨韵装裱
+   宣纸肌理 / 装裱卡片 / 墨玉按钮 / 魁首台 / 笺纸签到 / 信笺文苑 / 书脊立体
+   ============================================================ */
+
+/* ---- 全局基底：宣纸肌理 + 暗角 ---- */
+body::before { opacity: .42; }
+body::after {
+    content: ''; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+    background:
+        radial-gradient(120% 90% at 50% 40%, transparent 62%, rgba(58,48,30,.07) 100%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='380' height='380'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.012 .05' numOctaves='3' seed='7'/%3E%3CfeColorMatrix values='0 0 0 0 0.42 0 0 0 0 0.37 0 0 0 0 0.26 0 0 0 .035 0'/%3E%3C/filter%3E%3Crect width='380' height='380' filter='url(%23f)'/%3E%3C/svg%3E");
+}
+*::-webkit-scrollbar-thumb { background: linear-gradient(180deg, var(--ink-3), var(--line)); border-radius: 3px; }
+::selection { background: rgba(158,43,37,.18); color: var(--ink); }
+
+/* ---- 装裱卡片体系：暖纸渐变 + 双线角饰 ---- */
+.card {
+    background: linear-gradient(178deg, #fdfbf1 0%, #f8f2df 88%, #f3ecd6 100%);
+    border-radius: 6px;
+    box-shadow: var(--shadow-sm);
+}
+.card.hoverable:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+.card.frame::after { inset: 8px; border-color: rgba(176,141,74,.28); }
+.card.frame::before { --c: rgba(158,43,37,.55); }
+
+/* ---- 墨玉按钮 / 朱砂印钮 ---- */
+.btn {
+    position: relative;
+    background: linear-gradient(168deg, #3e382c 0%, #26221a 58%, #1a1712 100%);
+    border: 1px solid #12100b;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.14), 0 3px 10px rgba(24,20,12,.3);
+    overflow: hidden;
+}
+.btn::after {
+    content: ''; position: absolute; left: -30%; top: 0; width: 46%; height: 100%;
+    background: linear-gradient(110deg, transparent, rgba(255,255,255,.09), transparent);
+    transform: skewX(-18deg); transition: left .45s ease;
+}
+.btn:hover { background: linear-gradient(168deg, #4a4436, #322c21); transform: translateY(-1px); box-shadow: inset 0 1px 0 rgba(255,255,255,.16), 0 5px 14px rgba(24,20,12,.34); }
+.btn:hover::after { left: 110%; }
+.btn:active { transform: translateY(0); }
+.btn.red { background: linear-gradient(150deg, #b23a30 0%, #8a231d 100%); border-color: #6f1913; box-shadow: inset 0 1px 0 rgba(255,255,255,.22), 0 3px 10px rgba(126,31,26,.32); }
+.btn.red:hover { background: linear-gradient(150deg, #bd4438, #93261f); }
+.btn.plain { background: transparent; box-shadow: none; }
+.btn.plain:hover { background: rgba(158,43,37,.05); }
+.btn:disabled { opacity: .38; filter: grayscale(.45); box-shadow: none; transform: none !important; }
+/* 落印仪式按钮（签到提交） */
+.stamp-btn { letter-spacing: 10px !important; text-indent: 10px; }
+.stamp-btn::before {
+    content: ''; position: absolute; inset: 5px; z-index: 1; pointer-events: none;
+    border: 1px dashed rgba(246,239,224,.5); border-radius: 3px;
+}
+.stamp-btn:hover { box-shadow: 0 8px 20px rgba(126,31,26,.42), inset 0 1px 0 rgba(255,255,255,.25); }
+
+/* ---- 页面标题：印章晕染 + 墨线装饰 ---- */
+.page-head { position: relative; }
+.page-title { position: relative; padding-bottom: 14px; }
+.page-title::after {
+    content: ''; position: absolute; left: 70px; bottom: 0; width: 230px; height: 9px; pointer-events: none;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='230' height='9' viewBox='0 0 230 9'%3E%3Cpath d='M4 6 C 60 2, 90 8, 130 4.5 S 205 3.5, 226 5.5' stroke='%2326221a' stroke-width='2.6' fill='none' stroke-linecap='round' opacity='.22'/%3E%3Ccircle cx='4' cy='4.5' r='2.6' fill='%239e2b25' opacity='.55'/%3E%3C/svg%3E") no-repeat left center / 100% 100%;
+}
+.title-seal {
+    position: relative;
+    background: linear-gradient(150deg, #b23a30, #82201b);
+    transform: rotate(-2.5deg);
+    box-shadow: 0 3px 10px rgba(126,31,26,.32), 0 0 0 5px rgba(158,43,37,.07), 0 0 26px rgba(158,43,37,.12), inset 0 1px 0 rgba(255,255,255,.22);
+}
+.title-seal::after {
+    content: ''; position: absolute; inset: 4px; pointer-events: none;
+    border: 1px solid rgba(246,239,224,.4); border-radius: 2px;
+}
+
+/* ---- 首页 hero：墨晕 ---- */
+.hero-title { position: relative; }
+.hero-title::before {
+    content: ''; position: absolute; inset: -42px -36px -30px; z-index: -1; border-radius: 50%;
+    background:
+        radial-gradient(closest-side, rgba(38,34,26,.075), transparent 72%),
+        radial-gradient(60% 60% at 72% 30%, rgba(176,141,74,.07), transparent 70%);
+}
+.hero-sub { text-shadow: 0 1px 0 rgba(255,255,255,.6); }
+
+/* ---- 首页导航卡：水墨意象小图 ---- */
+.nav-card { position: relative; }
+.nav-motif {
+    position: absolute; top: 16px; right: 16px; width: 50px; height: 50px;
+    color: rgba(38,34,26,.32); opacity: .85;
+    transform: rotate(3deg);
+    transition: color .3s ease, transform .3s ease, opacity .3s ease;
+    pointer-events: none;
+}
+.nav-card:hover .nav-motif { color: rgba(158,43,37,.55); transform: rotate(-2deg) scale(1.08); opacity: 1; }
+.nav-card .nav-desc { position: relative; }
+.nav-card:hover { border-color: #b9ac8b; }
+
+/* ---- 统计格：顶部墨签 ---- */
+.stat-cell { overflow: hidden; transition: transform .25s ease, box-shadow .25s ease, border-color .25s; }
+.stat-cell::before {
+    content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 52px; height: 3px; border-radius: 0 0 3px 3px;
+    background: linear-gradient(90deg, transparent, var(--cinnabar), transparent);
+    opacity: .65;
+}
+.stat-cell .num { font-family: 'Ma Shan Zheng', 'KaiTi', serif; font-weight: normal; font-size: 38px; letter-spacing: 2px; }
+.stat-cell:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: #bdb190; }
+
+/* ---- 魁首台：冠亚季牌位 ---- */
+.podium {
+    display: grid; grid-template-columns: 1fr 1.06fr 1fr; gap: 22px;
+    align-items: end; margin-bottom: 26px;
+}
+.podium-card { text-align: center; cursor: pointer; overflow: hidden; }
+.podium-card.pk1 { order: 2; border-top: 4px solid #b08d2f; padding-top: 34px; }
+.podium-card.pk2 { order: 1; border-top: 4px solid #9d9c94; }
+.podium-card.pk3 { order: 3; border-top: 4px solid #a06a38; }
+.pk1 { background: linear-gradient(178deg, #fdf7e7 0%, #f7edcf 90%); }
+.pk1.card.frame::before { --c: rgba(176,141,74,.65); }
+.pod-medal {
+    width: 56px; height: 56px; margin: 0 auto 14px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 25px; box-shadow: 0 4px 12px rgba(40,32,16,.28), inset 0 1px 0 rgba(255,255,255,.45);
+}
+.pk1 .pod-medal { background: radial-gradient(circle at 32% 30%, #ecd07c, #b8912f 74%); color: #5b3f10; border: 2px solid #d9b95c; }
+.pk2 .pod-medal { background: radial-gradient(circle at 32% 30%, #e2e2dc, #96968c 74%); color: #45453e; border: 2px solid #c4c4bb; }
+.pk3 .pod-medal { background: radial-gradient(circle at 32% 30%, #d8a36c, #91582a 74%); color: #4d2c12; border: 2px solid #c08d55; }
+.pod-name { font-size: 24px; font-weight: bold; letter-spacing: 3px; }
+.pod-tier { margin-top: 8px; }
+.pod-pts { font-size: 46px; line-height: 1.15; color: var(--cinnabar); margin: 10px 0 2px; text-shadow: 0 2px 0 rgba(158,43,37,.08); }
+.pod-pts i { font-style: normal; font-size: 16px; color: var(--ink-3); margin-left: 5px; letter-spacing: 2px; }
+.pod-sub { font-size: 14px; color: var(--ink-2); letter-spacing: 1px; }
+.pod-ach { justify-content: center; margin-top: 12px; min-height: 26px; }
+@media (max-width: 860px) {
+    .podium { grid-template-columns: 1fr; }
+    .podium-card { order: 0 !important; }
+}
+
+/* ---- 金榜表格精修 ---- */
+.board { background: linear-gradient(168deg, #37321f 0%, #241f15 64%, #1a1610 100%); }
+.board th { padding: 15px 10px; letter-spacing: 4px; border-bottom: 1px solid rgba(216,196,150,.4); position: relative; }
+.board th::after {
+    content: ''; position: absolute; left: 10px; right: 10px; bottom: -3px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(176,141,74,.5), transparent);
+}
+.board tr { transition: background .2s; }
+.board tr:nth-child(2n) td { background: rgba(216,196,150,.05); }
+.pts-bar { height: 5px; margin-top: 7px; max-width: 130px; background: rgba(216,196,150,.14); border-radius: 99px; overflow: hidden; }
+.pts-bar-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #8a6f2f, #d9b95c); box-shadow: 0 0 6px rgba(217,185,92,.4); }
+
+/* ---- 每日签到：双栏笺纸 + 朱印月历 ---- */
+.sign-duo { display: flex; gap: 26px; max-width: 1120px; margin: 0 auto; flex-wrap: wrap; align-items: stretch; }
+.sign-duo .sign-form { flex: 1.2 1 400px; max-width: none; margin: 0; position: relative; padding-left: 52px; }
+.sign-duo .sign-form::before {
+    content: ''; position: absolute; top: 16px; bottom: 16px; left: 22px; width: 2px;
+    background: repeating-linear-gradient(180deg, rgba(158,43,37,.55) 0 30px, transparent 30px 40px);
+    border-radius: 2px;
+}
+.sign-side {
+    flex: 1 1 330px; padding: 26px 30px 24px;
+    background: linear-gradient(180deg, #fdfaf0, #f6efdb);
+}
+.smp-streak { text-align: center; padding: 12px 0 2px; position: relative; }
+.smp-streak::before {
+    content: '连'; position: absolute; right: 2px; top: 0;
+    width: 40px; height: 40px; border: 1.5px solid rgba(158,43,37,.3); border-radius: 4px;
+    color: rgba(158,43,37,.4); font-size: 20px; display: flex; align-items: center; justify-content: center;
+    transform: rotate(6deg); font-family: 'KaiTi','STKaiti',serif;
+}
+.smp-big { font-size: 66px; line-height: 1.05; color: var(--cinnabar); }
+.smp-cap { color: var(--ink-2); letter-spacing: 5px; margin-top: 8px; font-size: 15px; }
+.smp-stats { display: flex; justify-content: center; gap: 28px; margin: 14px 0 6px; color: var(--ink-2); font-size: 15px; letter-spacing: 1px; }
+.smp-stats b { color: var(--cinnabar); font-size: 18px; }
+.smp-foot { text-align: center; margin-top: 16px; color: var(--ink-2); font-size: 15px; letter-spacing: 2px; }
+.smp-foot b { color: var(--cinnabar); font-size: 19px; }
+/* 朱印月历：签到格盖朱砂小印 */
+.cal-cell { border-radius: 4px; }
+.cal-cell.signed {
+    background: linear-gradient(150deg, #b23a30, #8a231d);
+    border-color: #82201b; color: #f6efe0;
+    transform: rotate(-6deg) scale(.94);
+    box-shadow: 0 3px 8px rgba(126,31,26,.32), inset 0 0 0 2px rgba(246,239,224,.28), inset 0 1px 0 rgba(255,255,255,.22);
+    position: relative;
+}
+.cal-cell.signed::after {
+    content: ''; position: absolute; inset: 3px; pointer-events: none;
+    border: 1px dashed rgba(246,239,224,.42); border-radius: 2px;
+}
+.cal-cell.signed:nth-child(2n) { transform: rotate(5deg) scale(.94); }
+.cal-cell.today { outline: 2px solid var(--cinnabar); outline-offset: 2px; }
+
+/* ---- 精装搜索栏 ---- */
+.search-bar {
+    background: linear-gradient(180deg, #fdfbf2, #f8f2df);
+    border-radius: 10px; box-shadow: var(--shadow-sm);
+    transition: border-color .25s, box-shadow .25s;
+}
+.search-bar:focus-within { border-color: #b9ac8b; box-shadow: var(--shadow-md); }
+.search-bar input { caret-color: var(--cinnabar); }
+.search-bar input::placeholder { color: var(--ink-3); letter-spacing: 1px; }
+
+/* ---- 心得文苑：信笺卡 ---- */
+.wall-card {
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40'%3E%3Crect x='2' y='2' width='36' height='36' rx='3' fill='none' stroke='rgba(158,43,37,.34)' stroke-width='2'/%3E%3Ctext x='20' y='28' text-anchor='middle' font-size='21' fill='rgba(158,43,37,.4)' font-family='KaiTi,STKaiti,serif'%3E%E9%9B%85%3C/text%3E%3C/svg%3E") no-repeat top 14px right 15px / 34px 34px,
+        repeating-linear-gradient(180deg, transparent 0 37px, rgba(38,34,26,.04) 37px 38px),
+        linear-gradient(178deg, #fdfbf1 0%, #f6f0db 100%);
+}
+.wall-quote { font-size: 62px; color: rgba(158,43,37,.3); top: 38px; left: 20px; }
+.wall-card:hover { border-color: #b9ac8b; }
+
+/* ---- 论坛：回帖链 ---- */
+.forum-post { transition: transform .25s ease, box-shadow .25s ease; }
+.forum-post:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.post-form { position: relative; overflow: hidden; }
+.post-form::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--cinnabar), rgba(176,141,74,.7), var(--cinnabar));
+    opacity: .55;
+}
+.f-replies { position: relative; padding-left: 28px; margin-top: 18px; }
+.f-replies::before {
+    content: ''; position: absolute; left: 10px; top: 8px; bottom: 22px; width: 2px;
+    background: linear-gradient(180deg, var(--line), rgba(207,198,172,.2));
+    border-radius: 2px;
+}
+.f-reply { position: relative; background: linear-gradient(180deg, #fbf7ea, #f4edd9); border-radius: 0 10px 10px 0; }
+.f-reply::before {
+    content: ''; position: absolute; left: -23px; top: 19px; width: 9px; height: 9px; border-radius: 50%;
+    background: var(--card); border: 2px solid var(--cinnabar);
+    box-shadow: 0 0 0 3px rgba(158,43,37,.12);
+}
+.f-reply-box { margin-left: 28px; }
+.f-reply-box input { background: #fffdf6; }
+
+/* ---- 藏经阁 / 书库：立体书脊 · 抽书微倾 ---- */
+.book-spine {
+    position: relative;
+    background: linear-gradient(172deg, #5a4c3c 0%, #3a322b 55%, #292218 100%);
+    border-radius: 7px 2px 2px 7px;
+    transition: transform .3s ease;
+    transform-origin: 50% 100%;
+}
+.book-spine::before {
+    content: ''; position: absolute; right: 3px; top: 10px; bottom: 10px; width: 2px;
+    background: repeating-linear-gradient(180deg, rgba(216,196,150,.5) 0 5px, transparent 5px 11px);
+}
+.book-spine::after {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: 6px;
+    background: linear-gradient(180deg, rgba(0,0,0,.42), transparent);
+    border-radius: 7px 2px 0 0;
+}
+.shelf-book { transition: transform .25s ease, box-shadow .25s ease; }
+.shelf-book:hover .book-spine { transform: rotate(-4deg) translateY(-3px); }
+.shelf-book:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+
+/* ---- 落款 ---- */
+.footer { letter-spacing: 5px; }
+
+/* ---- 移动端收口：修 375px 首页 hero 横向溢出 ---- */
+@media (max-width: 860px) {
+    .hero-title { font-size: 38px; letter-spacing: 5px; padding-bottom: 12px; }
+    .hero-title::before { inset: -20px -8px -14px; }
+    .hero-seal {
+        width: 24px; height: 24px; font-size: 10px; line-height: 12px;
+        vertical-align: 18px; margin-left: 5px;
+    }
+    .hero { gap: 12px; }
+}
+</style>
 </head>
 <body>
 
@@ -1051,11 +1321,13 @@ body::before { opacity: .38; }
 
         <div class="home-grid">
             <div class="card frame hoverable nav-card" @click="goToPage('leaderboard')">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 38 L16 18 L24 32 L31 21 L42 38"/><path d="M6 38 H42"/><path d="M24 32 V11"/><path d="M24 11 L33 14.5 L24 18"/></g></svg>
                 <div class="brush-char brush">榜<span class="mini-seal">第</span></div>
                 <div class="nav-title">阅读积分榜</div>
                 <div class="nav-desc">群贤毕至 · 以书会友</div>
             </div>
             <div class="card frame hoverable nav-card" @click="goToPage('sign')" v-if="currentUser">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="13" y="14" width="24" height="24" rx="3"/><path d="M19 27 c3-7 9 7 12 0"/><path d="M25 14 V7"/><circle cx="25" cy="5.5" r="1.8"/></g></svg>
                 <div class="brush-char brush">签<span class="mini-seal">日</span></div>
                 <div class="nav-title">每日签到</div>
                 <div class="nav-desc">一日不书 · 百事荒芜</div>
@@ -1063,17 +1335,20 @@ body::before { opacity: .38; }
                 <div class="nav-tag plain" v-else>去打卡</div>
             </div>
             <div class="card frame hoverable nav-card" @click="goToPage('wall')">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 42 C 21 36, 30 24, 37 11"/><path d="M37 11 L41.5 5.5 L36.5 9.5"/><path d="M11 44 l4 -4"/><path d="M31 17 c2 3 5 4 6 8"/></g></svg>
                 <div class="brush-char brush">文<span class="mini-seal">苑</span></div>
                 <div class="nav-title">心得文苑</div>
                 <div class="nav-desc">奇文共欣赏 · 疑义相与析</div>
             </div>
             <div class="card frame hoverable nav-card" @click="goToPage('pavilion')" v-if="currentUser">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="10" y="20" width="28" height="20" rx="2"/><path d="M10 27 h28"/><path d="M19 20 v20 M29 20 v20"/><path d="M13 20 c3 -7 19 -7 22 0"/></g></svg>
                 <div class="brush-char brush">阁<span class="mini-seal">藏</span></div>
                 <div class="nav-title">藏经阁</div>
                 <div class="nav-desc">读罢之书 · 悉数珍藏</div>
                 <div class="nav-tag plain" v-if="myLibrary.bookCount">藏卷 {{ myLibrary.bookCount }}</div>
             </div>
             <div class="card frame hoverable nav-card" @click="goToPage('activity')">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 8 V42"/><path d="M14 10 C 22 6.5, 27 14, 38 10 L38 22 C 27 26, 22 18.5, 14 22 Z"/></g></svg>
                 <div class="brush-char brush">动<span class="mini-seal">会</span></div>
                 <div class="nav-title">活动广场</div>
                 <div class="nav-desc">选书投票 · 共读一本书</div>
@@ -1081,28 +1356,33 @@ body::before { opacity: .38; }
                 <div class="nav-tag" v-else-if="activeRead">共读进行时</div>
             </div>
             <div class="card frame hoverable nav-card" @click="goToPage('books')">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="14" width="9" height="27" rx="1"/><rect x="19" y="11" width="9" height="30" rx="1"/><path d="M31 40 L36 13 L43 15 L38 40 Z"/></g></svg>
                 <div class="brush-char brush">书<span class="mini-seal">库</span></div>
                 <div class="nav-title">书库</div>
                 <div class="nav-desc">博览群书 · 共同研读</div>
                 <div class="nav-tag plain" v-if="allBooks.length">{{ allBooks.length }} 种在读</div>
             </div>
             <div class="card frame hoverable nav-card" @click="goToPage('forum')">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="14" width="32" height="24" rx="2"/><path d="M9 16 L24 28 L39 16"/></g></svg>
                 <div class="brush-char brush">坛<span class="mini-seal">论</span></div>
                 <div class="nav-title">书会论坛</div>
                 <div class="nav-desc">以文会友 · 畅叙幽情</div>
                 <div class="nav-tag plain" v-if="forum.length">帖 {{ forum.length }}</div>
             </div>
             <div class="card frame hoverable nav-card" @click="goToPage('admin')" v-if="currentUser?.role === 'admin'">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="28" width="32" height="10" rx="2"/><path d="M16 28 c0 -8 16 -8 16 0"/><circle cx="24" cy="14" r="3.5"/></g></svg>
                 <div class="brush-char brush">馆<span class="mini-seal">掌</span></div>
                 <div class="nav-title">掌馆事务</div>
                 <div class="nav-desc">成员 · 成就 · 审核</div>
             </div>
             <div class="card frame hoverable nav-card" @click="showLoginModal=true" v-if="!currentUser">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 42 V18 C13 9 35 9 35 18 V42"/><path d="M24 42 V26"/><path d="M9 42 H39"/></g></svg>
                 <div class="brush-char brush">入<span class="mini-seal">会</span></div>
                 <div class="nav-title">登录</div>
                 <div class="nav-desc">已有账号 · 即刻归馆</div>
             </div>
             <div class="card frame hoverable nav-card" @click="showRegisterModal=true" v-if="!currentUser">
+                <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="10" width="20" height="30" rx="2"/><path d="M14 17 h20 M14 34 h20"/><path d="M19 24 c2 -4 8 4 10 0"/></g></svg>
                 <div class="brush-char brush">盟<span class="mini-seal">新</span></div>
                 <div class="nav-title">加入书会</div>
                 <div class="nav-desc">新友来访 · 恭候多时</div>
@@ -1110,6 +1390,7 @@ body::before { opacity: .38; }
         </div>
 
         <div class="card frame hoverable ach-hero" @click="goToPage('achievements')">
+            <svg class="nav-motif" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="17" r="9"/><path d="M18 24.5 L14 43 L24 35 L34 43 L30 24.5"/></g></svg>
             <div class="brush-char brush">成<span class="mini-seal">就</span></div>
             <div class="ach-hero-info">
                 <div class="nav-title">成就勋章</div>
@@ -1137,14 +1418,29 @@ body::before { opacity: .38; }
             <div class="page-title brush"><span class="title-seal">榜</span>阅读积分榜</div>
             <button class="btn plain sm" @click="goToPage('home')">← 返回</button>
         </div>
-        <div class="board">
+        <div class="podium" v-if="leaderboardData.length">
+            <div class="card frame hoverable podium-card" :class="'pk' + (idx + 1)" v-for="(u, idx) in leaderboardData.slice(0, 3)" :key="u.username" @click="openProfile(u.username)" :title="'查看 ' + u.name + ' 的主页'">
+                <div class="pod-medal brush">{{ ['冠', '亚', '季'][idx] }}</div>
+                <div class="pod-name">{{ u.name }}</div>
+                <div class="pod-tier"><span class="tier-badge" :style="tierStyle(u.totalPoints)"><span class="tb-ic">{{ getTitle(u.totalPoints).icon }}</span>{{ getTitle(u.totalPoints).name }}</span></div>
+                <div class="pod-pts brush">{{ u.totalPoints }}<i>分</i></div>
+                <div class="pod-sub">今日 +{{ u.todayPoints }} · 打卡 {{ u.signCount }} 天</div>
+                <div class="ach-mini pod-ach" v-if="u.achievementIcons.length">
+                    <span v-for="(icon, i) in u.achievementIcons.slice(0,3)" :key="i" :title="u.achievementNames[i]">{{ icon }}</span>
+                    <span v-if="u.achievementIcons.length > 3" :title="u.achievementNames.slice(3).join('、')">+{{ u.achievementIcons.length-3 }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="board" v-if="leaderboardData.length > 3">
             <table>
                 <tr><th>名次</th><th>姓名</th><th>段位</th><th>总积分</th><th>今日</th><th>打卡</th><th>成就</th></tr>
-                <tr v-for="(u,idx) in leaderboardData" :key="u.username">
-                    <td><span class="rank-no" :class="{top1: idx===0, top2: idx===1, top3: idx===2}">{{ idx+1 }}</span></td>
+                <tr v-for="(u,idx) in leaderboardData.slice(3)" :key="u.username">
+                    <td><span class="rank-no">{{ idx+4 }}</span></td>
                     <td style="font-size:19px;">{{ u.name }}</td>
                     <td><span class="tier-badge" :style="tierStyle(u.totalPoints)"><span class="tb-ic">{{ getTitle(u.totalPoints).icon }}</span>{{ getTitle(u.totalPoints).name }}</span></td>
-                    <td style="font-size:19px; font-weight:bold;">{{ u.totalPoints }}</td>
+                    <td style="font-size:19px; font-weight:bold;">{{ u.totalPoints }}
+                        <div class="pts-bar"><div class="pts-bar-fill" :style="{ width: Math.max(4, Math.min(100, u.totalPoints / leaderboardData[0].totalPoints * 100)) + '%' }"></div></div>
+                    </td>
                     <td><span class="today-pts">+{{ u.todayPoints }}</span></td>
                     <td>{{ u.signCount }} 天</td>
                     <td>
@@ -1156,6 +1452,9 @@ body::before { opacity: .38; }
                 </tr>
             </table>
         </div>
+        <div v-if="!leaderboardData.length" class="card frame" style="padding:48px; text-align:center; color:var(--ink-3); font-size:17px; letter-spacing:3px;">
+            榜上尚虚 · 诸君打卡积点，静候题名
+        </div>
     </div>
 
     <!-- ========== 每日签到 ========== -->
@@ -1164,7 +1463,8 @@ body::before { opacity: .38; }
             <div class="page-title brush"><span class="title-seal">签</span>每日签到</div>
             <button class="btn plain sm" @click="goToPage('home')">← 返回</button>
         </div>
-        <div class="card frame form-card">
+        <div class="sign-duo">
+        <div class="card frame form-card sign-form">
             <template v-if="!signedToday">
                 <div class="fg"><label>书名</label><input v-model="signBookTitle" list="bookList" placeholder="输入或从书库选择"></div>
                     <datalist id="bookList"><option v-for="b in books" :key="b.id" :value="b.title"></option></datalist>
@@ -1189,7 +1489,7 @@ body::before { opacity: .38; }
                 <label class="finish-check"><input type="checkbox" v-model="signFinished"> 此书已读完 · 藏入藏经阁</label>
                 <div class="estimate">预估积分<strong>{{ calculateEstimate() }}</strong>提交后待掌馆审核</div>
                 <div class="notice err" v-if="signError">{{ signError }}</div>
-                <button class="btn" style="width:100%; font-size:19px; padding:15px;" @click="submitSign">落 笔 签 到</button>
+                <button class="btn red stamp-btn" style="width:100%; font-size:19px; padding:15px;" @click="submitSign">落 印 签 到</button>
             </template>
             <div v-else style="text-align:center; padding:24px 0 10px;">
                 <div style="font-size:56px; margin-bottom:16px;">🍡</div>
@@ -1197,16 +1497,25 @@ body::before { opacity: .38; }
                 <div style="color:var(--ink-2); font-size:17px; letter-spacing:2px;">功在每日 · 明日再会</div>
             </div>
         </div>
-        <div class="card frame" style="max-width:640px; margin:28px auto 0; padding:30px 34px;">
-            <div class="form-title">{{ calTitle }} · 打卡日历</div>
+        <div class="card frame sign-side">
+            <div class="smp-streak">
+                <div class="smp-big brush">{{ myStats.continuousDays }}</div>
+                <div class="smp-cap">连续打卡 · 天</div>
+            </div>
+            <div class="smp-stats">
+                <span>累计打卡 <b>{{ myStats.signCount }}</b> 天</span>
+                <span>累计读页 <b>{{ myStats.totalPages }}</b> 页</span>
+            </div>
+            <div class="form-title">{{ calTitle }} · 朱印月历</div>
             <div class="cal-grid">
                 <div class="cal-cell head" v-for="h in ['日','一','二','三','四','五','六']">{{ h }}</div>
                 <div class="cal-cell" v-for="(c,i) in calendarCells" :key="i"
                      :class="{signed: c.signed, today: c.today}">{{ c.day || '' }}</div>
             </div>
-            <div style="text-align:center; margin-top:18px; color:var(--ink-2); font-size:15px; letter-spacing:2px;">
-                本月已打卡 <b style="color:var(--cinnabar); font-size:19px;">{{ signedThisMonth }}</b> 天
+            <div class="smp-foot">
+                本月已盖朱印 <b>{{ signedThisMonth }}</b> 处
             </div>
+        </div>
         </div>
     </div>
 
@@ -1262,14 +1571,14 @@ body::before { opacity: .38; }
         <div class="notice err" v-else style="max-width:900px; margin:0 auto 18px;">⚠ 当前为离线模式 · 数据仅存本机。请双击「启动服务器.bat」并通过局域网地址访问以启用同步</div>
 
         <!-- 搜索 -->
-        <div class="card frame" style="max-width:900px; margin:0 auto 22px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
+        <div class="card frame search-bar" style="max-width:900px; margin:0 auto 22px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
             <span style="font-size:19px; color:var(--ink-3);">🔍</span>
             <input v-model="forumSearch" placeholder="搜帖子：标题、正文、回帖或楼主姓名…" style="flex:1; border:none; outline:none; background:transparent; font-size:16px; font-family:inherit; color:var(--ink);">
             <button class="btn plain sm" v-if="forumSearch" @click="forumSearch=''">✕ 清空</button>
         </div>
 
         <!-- 发帖 -->
-        <div class="card frame" style="max-width:900px; margin:0 auto 22px; padding:26px 30px;" v-if="currentUser">
+        <div class="card frame post-form" style="max-width:900px; margin:0 auto 22px; padding:26px 30px;" v-if="currentUser">
             <div class="fg"><label>主题标题</label><input v-model="newPostTitle" placeholder="例：读完《三体》，来聊聊黑暗森林法则"></div>
             <div class="fg"><label>内容</label><textarea v-model="newPostContent" rows="3" placeholder="畅所欲言 · 以文会友"></textarea></div>
             <button class="btn" @click="submitPost">📢 发布主题</button>
@@ -1386,7 +1695,7 @@ body::before { opacity: .38; }
             <button class="btn plain sm" @click="goToPage('home')">← 返回</button>
         </div>
         <!-- 搜索 -->
-        <div class="card frame" style="max-width:980px; margin:0 auto 14px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
+        <div class="card frame search-bar" style="max-width:980px; margin:0 auto 14px; padding:16px 22px; display:flex; align-items:center; gap:12px;">
             <span style="font-size:19px; color:var(--ink-3);">🔍</span>
             <input v-model="bookSearch" placeholder="搜书目：书名、作者或简介…" style="flex:1; border:none; outline:none; background:transparent; font-size:16px; font-family:inherit; color:var(--ink);">
             <button class="btn plain sm" v-if="bookSearch" @click="bookSearch=''">✕ 清空</button>
@@ -3367,7 +3676,7 @@ createApp({
         const getTargetUnit = (type) =>
             ({ continuous: '天', total: '天', pages: '页', minutes: '分钟', reflections: '条', rankFirst: '天', topThree: '天' }[type] || '');
 
-        const goToPage = (p) => { currentPage.value = p; };
+        const goToPage = (p) => { currentPage.value = p; window.scrollTo(0, 0); };
         const showAchievementDetail = (ach) => { selectedAchievement.value = ach; };
 
         // ============ 管理 ============

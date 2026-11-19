@@ -10,3 +10,4 @@ Desktop.ini
 *.log
 .会话密钥
 会话密钥.key
+node_modules/
