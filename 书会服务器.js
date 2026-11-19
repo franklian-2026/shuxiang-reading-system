@@ -16,7 +16,7 @@ const DATA_FILE = path.join(ROOT, '书会数据.json');
 const SECRET_FILE = path.join(ROOT, '.会话密钥');
 const BACKUP_DIR = path.join(ROOT, '数据备份');
 const LOCK_FILE = path.join(ROOT, 'server.lock');
-const PORT = 8765;
+const PORT = process.env.PORT || 8765; // 发布平台注入 PORT，本地默认 8765
 const TOKEN_TTL = 30 * 24 * 3600 * 1000;   // 令牌有效期 30 天
 const EMPTY = { users: [], achievements: [], forum: [], notifications: [], books: [], activities: [] };
 
